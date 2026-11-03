@@ -49,15 +49,27 @@ def header(raw: bytes) -> str:
     ) % (len(raw), len(gz), len(gz), "\n".join(lines))
 
 
+def embedded_html(text: str) -> bytes:
+    """The HTML currently embedded in the header, decompressed."""
+    body = text[text.index("{") + 1:text.rindex("}")]
+    gz = bytes(int(h, 16) for h in re.findall(r"0x([0-9a-fA-F]{2})", body))
+    return gzip.decompress(gz)
+
+
 def main() -> None:
-    text = header(bundle())
+    raw = bundle()
     if "--check" in sys.argv[1:]:
-        current = OUT.read_text(encoding="utf-8") if OUT.exists() else ""
-        if current != text:
+        # Compare the decompressed page: gzip output differs between zlib
+        # versions, so comparing the bytes would fail on another machine.
+        try:
+            current = embedded_html(OUT.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as err:
+            sys.exit("%s cannot be read (%s): run tools/build_web.py" % (OUT.relative_to(ROOT), err))
+        if current != raw:
             sys.exit("%s is out of date: run tools/build_web.py" % OUT.relative_to(ROOT))
         print("%s is up to date" % OUT.relative_to(ROOT))
         return
-    OUT.write_text(text, encoding="utf-8")
+    OUT.write_text(header(raw), encoding="utf-8")
     print("wrote %s" % OUT.relative_to(ROOT))
 
 
