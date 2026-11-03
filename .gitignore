@@ -1,0 +1,20 @@
+# ESP-IDF build output and generated config
+build/
+sdkconfig
+sdkconfig.old
+sdkconfig.*
+!sdkconfig.defaults
+managed_components/
+dependencies.lock
+
+# PlatformIO
+.pio/
+
+# Host tests
+tests/build/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+.DS_Store

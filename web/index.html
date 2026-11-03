@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mix 'n Smash</title>
+<style>
+  :root {
+    --bg: #111318; --panel: #1b1e26; --panel-2: #242837; --text: #e8e8ec; --muted: #9a9fae;
+    --red: #ff3b30; --yellow: #ffbe00; --blue: #2f6bff; --accent: #ffbe00;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; max-width: 1100px; margin: 0 auto; padding: 14px 16px 6px; }
+  h1 { margin: 0; font-size: 1.5rem; letter-spacing: .5px; }
+  h1 .r { color: var(--red); } h1 .y { color: var(--yellow); } h1 .b { color: var(--blue); }
+  .badge { font-size: .8rem; padding: 4px 10px; border-radius: 999px; background: var(--panel-2); color: var(--muted); }
+  .badge.live { background: #173d2a; color: #7ee2a5; }
+  .badge.lost { background: #4a1d1a; color: #ff9d96; }
+  main { max-width: 1100px; margin: 0 auto; padding: 0 16px 32px; }
+  .strip-wrap { background: #000; border-radius: 12px; padding: 10px; }
+  canvas { display: block; width: 100%; }
+  .hud { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin: 14px 0; }
+  .stat { background: var(--panel); border-radius: 10px; padding: 10px 12px; min-width: 0; }
+  .stat .k { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; }
+  .stat .v { font-size: 1.35rem; font-weight: 700; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stat .v.lives { color: var(--red); letter-spacing: .1em; }
+  .buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 10px 0; }
+  .btn { border: 0; border-radius: 14px; padding: 20px 8px; font-size: 1.15rem; font-weight: 700; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: manipulation; transition: transform .05s, filter .05s; }
+  .btn.down { transform: scale(.96); filter: brightness(1.25); }
+  .btn.red { background: var(--red); color: #fff; }
+  .btn.yellow { background: var(--yellow); color: #221a00; }
+  .btn.blue { background: var(--blue); color: #fff; }
+  .btn kbd { display: block; font: 600 .85rem system-ui, sans-serif; opacity: .8; margin-top: 4px; }
+  .hint { color: var(--muted); text-align: center; min-height: 1.4em; margin: 6px 0 18px; }
+  .panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+  .panel { background: var(--panel); border-radius: 12px; padding: 14px 16px; }
+  .panel h2 { margin: 0 0 10px; font-size: 1.05rem; }
+  form { display: flex; gap: 8px; }
+  input[type=text], input[type=number] { flex: 1; min-width: 0; background: #0f1116; color: var(--text); border: 1px solid #333848; border-radius: 8px; padding: 10px; font-size: 1rem; }
+  button.secondary { background: var(--panel-2); color: var(--text); border: 0; border-radius: 8px; padding: 10px 14px; font-size: .95rem; cursor: pointer; }
+  button.secondary:hover { background: #353a49; }
+  table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+  td, th { padding: 6px 4px; text-align: left; border-bottom: 1px solid #262a36; }
+  th { color: var(--muted); font-weight: 600; font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.me td { color: var(--accent); }
+  .rules { color: var(--muted); font-size: .92rem; line-height: 1.5; margin: 0; padding-left: 1.2em; }
+  .rules b { color: var(--text); }
+  .dot { display: inline-block; width: .75em; height: .75em; border-radius: 50%; vertical-align: -.05em; margin: 0 .1em; }
+  label.check { display: flex; align-items: center; gap: 8px; margin: 10px 0; color: var(--muted); }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0; }
+  .muted { color: var(--muted); font-size: .85rem; margin: 8px 0 0; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Mi<span class="r">x</span> 'n Sma<span class="y">s</span><span class="b">h</span></h1>
+  <div class="row">
+    <button id="toggleMode" class="secondary hidden">Speel hier in de browser</button>
+    <span id="badge" class="badge">…</span>
+  </div>
+</header>
+<main>
+  <div class="strip-wrap"><canvas id="strip" width="300" height="40"></canvas></div>
+
+  <div class="hud">
+    <div class="stat"><div class="k">Level</div><div class="v" id="level">–</div></div>
+    <div class="stat"><div class="k">Levens</div><div class="v lives" id="lives">–</div></div>
+    <div class="stat"><div class="k">Score</div><div class="v" id="score">–</div></div>
+    <div class="stat"><div class="k">Beste</div><div class="v" id="best">–</div></div>
+    <div class="stat"><div class="k">Speler</div><div class="v" id="playerName">–</div></div>
+  </div>
+
+  <div class="buttons">
+    <button class="btn red" data-color="1">Rood<kbd>← pijl links</kbd></button>
+    <button class="btn yellow" data-color="2">Geel<kbd>↓ pijl omlaag</kbd></button>
+    <button class="btn blue" data-color="4">Blauw<kbd>→ pijl rechts</kbd></button>
+  </div>
+  <p class="hint" id="hint"></p>
+
+  <div class="panels">
+    <section class="panel">
+      <h2>Speler</h2>
+      <form id="nameForm">
+        <input type="text" id="name" maxlength="16" placeholder="Je naam" autocomplete="off">
+        <button class="secondary" type="submit">Opslaan</button>
+      </form>
+      <p class="muted" id="playerHelp">De volgende spellen komen onder deze naam in de lijst.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Highscores</h2>
+      <table>
+        <thead><tr><th class="num">#</th><th>Naam</th><th class="num">Score</th><th class="num">Level</th></tr></thead>
+        <tbody id="scores"></tbody>
+      </table>
+      <div class="row"><button id="clearScores" class="secondary">Wis de lijst</button></div>
+    </section>
+
+    <section class="panel" id="simPanel">
+      <h2>Simulatie</h2>
+      <div class="row">
+        <label for="nLeds" class="muted">Aantal LEDs</label>
+        <input type="number" id="nLeds" min="16" max="400" value="300" style="max-width: 110px">
+        <button id="applySettings" class="secondary">Nieuw spel</button>
+      </div>
+      <label class="check"><input type="checkbox" id="keepsDot"> Een stip die door een foute kleur geraakt wordt, blijft komen</label>
+      <p class="muted">Dezelfde regels, dezelfde snelheden en dezelfde animaties als op de echte strip.</p>
+    </section>
+
+    <section class="panel" id="livePanel">
+      <h2>Live</h2>
+      <p class="muted" id="liveInfo">Je ziet de strip die aan de ESP32 hangt. De knoppen en pijltjestoetsen hier drukken op de echte knoppen.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Spelregels</h2>
+      <ul class="rules">
+        <li>Gekleurde stippen komen van rechts naar je toe. Je staat links, bij de drie <b>levens</b>.</li>
+        <li>Een <b>primaire kleur</b> (<span class="dot" style="background:#f00"></span>rood, <span class="dot" style="background:#ffbe00"></span>geel, <span class="dot" style="background:#2f6bff"></span>blauw) schiet je weg met dezelfde knop.</li>
+        <li>Een <b>mengkleur</b> heeft twee kleuren nodig: <span class="dot" style="background:#ff4600"></span>oranje = rood + geel, <span class="dot" style="background:#aa00ff"></span>paars = rood + blauw, <span class="dot" style="background:#0f0"></span>groen = geel + blauw. Raak je oranje met geel, dan blijft er een rode stip over.</li>
+        <li>Vanaf level 5 komt er <span class="dot" style="background:#fff"></span><b>wit</b> bij: alle drie de kleuren.</li>
+        <li>Een <b>foute kleur</b> of een stip die je bereikt kost een leven. Een schot dat niets raakt kost niets.</li>
+        <li>Elk level heeft een vast aantal stippen. Daarna een regenboog, een leven terug, en het wordt sneller met meer mengkleuren en meer stippen tegelijk.</li>
+      </ul>
+    </section>
+  </div>
+</main>
+
+<script src="game.js"></script>
+<script>
+(function () {
+  'use strict';
+  var G = window.MixNSmash;
+  var $ = function (id) { return document.getElementById(id); };
+  var canvas = $('strip');
+  var ctx = canvas.getContext('2d');
+
+  var KEYS = { ArrowLeft: G.RED, ArrowDown: G.YELLOW, ArrowRight: G.BLUE };
+  var COLOR_NAMES = {}; COLOR_NAMES[G.RED] = 'red'; COLOR_NAMES[G.YELLOW] = 'yellow'; COLOR_NAMES[G.BLUE] = 'blue';
+  var HINTS = {
+    attract: 'Druk op een knop of een pijltjestoets om te starten.',
+    countdown: 'Klaar? De balk telt af…',
+    playing: '← rood   ↓ geel   → blauw',
+    level_clear: 'Level gehaald! Je krijgt een leven terug.',
+    game_over: 'Game over. Druk op een knop voor een nieuw spel.'
+  };
+
+  var mode = null;                 /* 'sim' or 'live' */
+  var served = false;              /* page comes from the ESP32 */
+  var sim = { g: null, leds: null, acc: 0, last: 0, raf: 0 };
+  var live = { timer: null, state: null, failures: 0 };
+
+  /* ---- Strip drawing -------------------------------------------------- */
+
+  function drawStrip(leds, n) {
+    var cssW = canvas.parentElement.clientWidth - 20;
+    if (cssW < 100) cssW = 100;
+    var minCell = 8;
+    var perRow = Math.min(n, Math.max(10, Math.floor(cssW / minCell)));
+    var rows = Math.ceil(n / perRow);
+    perRow = Math.ceil(n / rows);
+    var cell = cssW / perRow;
+    var cssH = rows * cell + 6;
+    var dpr = window.devicePixelRatio || 1;
+    var pw = Math.round(cssW * dpr), ph = Math.round(cssH * dpr);
+    if (canvas.width !== pw || canvas.height !== ph) {
+      canvas.width = pw; canvas.height = ph;
+      canvas.style.height = cssH + 'px';
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, cssW, cssH);
+
+    var r0 = cell * 0.36, r1 = cell * 0.62;
+    for (var i = 0; i < n; i++) {
+      var row = Math.floor(i / perRow), col = i % perRow;
+      var x = col * cell + cell / 2, y = row * cell + cell / 2 + 3;
+      var r = leds[i * 3], g = leds[i * 3 + 1], b = leds[i * 3 + 2];
+      if (r || g || b) {
+        ctx.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',0.35)';
+        ctx.beginPath(); ctx.arc(x, y, r1, 0, 6.2832); ctx.fill();
+        ctx.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')';
+      } else {
+        ctx.fillStyle = '#15171c';
+      }
+      ctx.beginPath(); ctx.arc(x, y, r0, 0, 6.2832); ctx.fill();
+    }
+    /* The player's line, between the lives and the playfield. */
+    ctx.strokeStyle = '#3a3f4e';
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath(); ctx.moveTo(G.PLAY_START * cell, 0); ctx.lineTo(G.PLAY_START * cell, cell + 6); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  function hexToLeds(hex, n) {
+    var out = new Uint8Array(n * 3);
+    for (var i = 0; i < n * 3 && i * 2 + 1 < hex.length; i++) out[i] = parseInt(hex.substr(i * 2, 2), 16);
+    return out;
+  }
+
+  /* ---- HUD ------------------------------------------------------------ */
+
+  function updateHud(state, level, lives, score, best, player) {
+    $('level').textContent = level;
+    var hearts = '';
+    for (var i = 0; i < G.MAX_LIVES; i++) hearts += i < lives ? '●' : '○';
+    $('lives').textContent = hearts;
+    $('score').textContent = score;
+    $('best').textContent = best;
+    $('playerName').textContent = player;
+    $('hint').textContent = HINTS[state] || '';
+  }
+
+  function setBadge(text, cls) {
+    var el = $('badge');
+    el.textContent = text;
+    el.className = 'badge' + (cls ? ' ' + cls : '');
+  }
+
+  /* ---- Local high scores (browser version) ---------------------------- */
+
+  function localScores() {
+    try { return JSON.parse(localStorage.getItem('mns.scores') || '[]'); } catch (e) { return []; }
+  }
+  function saveLocalScores(list) {
+    try { localStorage.setItem('mns.scores', JSON.stringify(list)); } catch (e) { /* private mode */ }
+  }
+  function localName() {
+    var n = '';
+    try { n = localStorage.getItem('mns.name') || ''; } catch (e) { /* ignore */ }
+    return n || 'Speler';
+  }
+  function addLocalScore(name, score, level) {
+    if (!score) return;
+    var list = localScores();
+    list.push({ name: name, score: score, level: level });
+    list.sort(function (a, b) { return b.score - a.score; });
+    saveLocalScores(list.slice(0, 10));
+    renderScores(localScores(), name);
+  }
+  function localBest() {
+    var list = localScores();
+    return list.length ? list[0].score : 0;
+  }
+
+  function renderScores(list, player) {
+    var tbody = $('scores');
+    tbody.innerHTML = '';
+    if (!list.length) {
+      var tr = document.createElement('tr');
+      var td = document.createElement('td');
+      td.colSpan = 4; td.className = 'muted'; td.textContent = 'Nog geen scores. Speel een spel!';
+      tr.appendChild(td); tbody.appendChild(tr);
+      return;
+    }
+    list.forEach(function (e, i) {
+      var tr = document.createElement('tr');
+      if (e.name === player) tr.className = 'me';
+      [[i + 1, 'num'], [e.name, ''], [e.score, 'num'], [e.level, 'num']].forEach(function (c) {
+        var td = document.createElement('td');
+        td.textContent = c[0]; td.className = c[1];
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+  }
+
+  /* ---- Browser version -------------------------------------------------- */
+
+  function simStart() {
+    var n = parseInt($('nLeds').value, 10) || 300;
+    n = Math.max(G.MIN_LEDS, Math.min(G.MAX_LEDS, n));
+    $('nLeds').value = n;
+    sim.g = G.init(n, (Math.random() * 4294967296) >>> 0, { wrong_hit_keeps_dot: $('keepsDot').checked });
+    sim.leds = new Uint8Array(n * 3);
+    sim.last = performance.now();
+    sim.acc = 0;
+    cancelAnimationFrame(sim.raf);
+    sim.raf = requestAnimationFrame(simFrame);
+  }
+
+  function simStop() {
+    cancelAnimationFrame(sim.raf);
+    sim.raf = 0;
+  }
+
+  function simFrame(now) {
+    var elapsed = now - sim.last;
+    sim.last = now;
+    if (elapsed > 250) elapsed = 250;        /* tab was hidden: do not fast-forward */
+    sim.acc += elapsed;
+    var steps = 0;
+    while (sim.acc >= 16 && steps < 16) {
+      G.tick(sim.g, 16);
+      var ev = G.takeEvents(sim.g);
+      if (ev & G.EV.GAME_OVER) addLocalScore(localName(), sim.g.score, sim.g.level);
+      sim.acc -= 16;
+      steps++;
+    }
+    G.render(sim.g, sim.leds);
+    drawStrip(sim.leds, sim.g.n_leds);
+    updateHud(G.stateName(sim.g.state), sim.g.level, sim.g.lives, sim.g.score, localBest(), localName());
+    sim.raf = requestAnimationFrame(simFrame);
+  }
+
+  /* ---- Live view of the real strip -------------------------------------- */
+
+  function livePoll() {
+    fetch('/api/state', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (s) {
+      live.failures = 0;
+      setBadge('Live op de strip', 'live');
+      drawStrip(hexToLeds(s.leds, s.n), s.n);
+      updateHud(s.state, s.level, s.lives, s.score, s.best, s.player);
+      $('liveInfo').textContent = 'Je ziet de strip die aan de ESP32 hangt (' + s.n + ' LEDs, ongeveer ' + s.ma +
+        ' mA). De knoppen en pijltjestoetsen hier drukken op de echte knoppen.';
+      if (s.state !== live.state) {
+        if (s.state === 'game_over' || live.state === 'game_over') loadLiveScores();
+        live.state = s.state;
+      }
+    }).catch(function () {
+      if (++live.failures >= 3) setBadge('Geen verbinding met de ESP32', 'lost');
+    });
+  }
+
+  function loadLiveScores() {
+    fetch('/api/highscores', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+      renderScores(d.scores, d.player);
+      if (!$('name').value) $('name').value = d.player === 'Speler' ? '' : d.player;
+    }).catch(function () { /* shown by the badge */ });
+  }
+
+  function liveStart() {
+    live.state = null;
+    livePoll();
+    live.timer = setInterval(livePoll, 100);
+    loadLiveScores();
+  }
+
+  function liveStop() {
+    clearInterval(live.timer);
+    live.timer = null;
+  }
+
+  /* ---- Input ------------------------------------------------------------ */
+
+  function flashButton(color) {
+    var btn = document.querySelector('.btn[data-color="' + color + '"]');
+    if (!btn) return;
+    btn.classList.add('down');
+    setTimeout(function () { btn.classList.remove('down'); }, 120);
+  }
+
+  function pressColor(color) {
+    flashButton(color);
+    if (mode === 'live') {
+      fetch('/api/press', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ color: COLOR_NAMES[color] }) }).catch(function () {});
+    } else if (sim.g) {
+      G.press(sim.g, color);
+    }
+  }
+
+  document.addEventListener('keydown', function (e) {
+    var c = KEYS[e.key];
+    if (!c || e.repeat) return;
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON')) e.target.blur();
+    e.preventDefault();
+    pressColor(c);
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll('.btn'), function (btn) {
+    btn.addEventListener('pointerdown', function (e) {
+      e.preventDefault();
+      pressColor(parseInt(btn.getAttribute('data-color'), 10));
+    });
+    btn.addEventListener('keydown', function (e) { if (e.key === ' ' || e.key === 'Enter') e.preventDefault(); });
+  });
+
+  /* ---- Forms ------------------------------------------------------------ */
+
+  $('nameForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var name = $('name').value.trim().slice(0, 16);
+    if (mode === 'live') {
+      fetch('/api/player', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                             body: JSON.stringify({ name: name }) })
+        .then(function (r) { return r.json(); })
+        .then(function (d) { renderScores(d.scores, d.player); $('name').value = d.player; })
+        .catch(function () {});
+    } else {
+      try { localStorage.setItem('mns.name', name); } catch (err) { /* ignore */ }
+      renderScores(localScores(), localName());
+    }
+    $('name').blur();
+  });
+
+  $('clearScores').addEventListener('click', function () {
+    if (!confirm('Alle highscores wissen?')) return;
+    if (mode === 'live') {
+      fetch('/api/highscores', { method: 'DELETE' }).then(function (r) { return r.json(); })
+        .then(function (d) { renderScores(d.scores, d.player); }).catch(function () {});
+    } else {
+      saveLocalScores([]);
+      renderScores([], localName());
+    }
+  });
+
+  $('applySettings').addEventListener('click', function () { simStart(); $('applySettings').blur(); });
+
+  $('toggleMode').addEventListener('click', function () {
+    setMode(mode === 'live' ? 'sim' : 'live');
+    $('toggleMode').blur();
+  });
+
+  window.addEventListener('resize', function () {
+    if (mode === 'sim' && sim.g) drawStrip(sim.leds, sim.g.n_leds);
+  });
+
+  /* ---- Mode ------------------------------------------------------------- */
+
+  function setMode(m) {
+    mode = m;
+    if (m === 'live') {
+      simStop();
+      $('simPanel').classList.add('hidden');
+      $('livePanel').classList.remove('hidden');
+      $('playerHelp').textContent = 'De volgende spellen op de strip komen onder deze naam in de lijst.';
+      $('toggleMode').textContent = 'Speel hier in de browser';
+      liveStart();
+    } else {
+      liveStop();
+      $('simPanel').classList.remove('hidden');
+      $('livePanel').classList.add('hidden');
+      $('playerHelp').textContent = 'Scores van de browserversie blijven in deze browser bewaard.';
+      $('toggleMode').textContent = 'Toon de echte strip';
+      setBadge(served ? 'Browserversie' : 'Browserversie (geen ESP32)');
+      $('name').value = localName() === 'Speler' ? '' : localName();
+      renderScores(localScores(), localName());
+      simStart();
+    }
+    $('toggleMode').classList.toggle('hidden', !served);
+  }
+
+  function detectMode() {
+    if (location.protocol === 'file:') return Promise.resolve('sim');
+    var ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    if (ctl) setTimeout(function () { ctl.abort(); }, 1500);
+    return fetch('/api/state', { cache: 'no-store', signal: ctl ? ctl.signal : undefined })
+      .then(function (r) { return r.json(); })
+      .then(function (s) { return (s && typeof s.leds === 'string') ? 'live' : 'sim'; })
+      .catch(function () { return 'sim'; });
+  }
+
+  setBadge('Verbinden…');
+  detectMode().then(function (m) {
+    served = (m === 'live');
+    setMode(m);
+  });
+})();
+</script>
+</body>
+</html>

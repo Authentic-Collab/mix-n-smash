@@ -1,0 +1,70 @@
+name: build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  game-rules:
+    name: game rules (C tests + JavaScript trace)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: make -C tests check
+
+  web-bundle:
+    name: web page bundled into the firmware
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/build_web.py --check
+
+  platformio:
+    name: firmware (PlatformIO)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ hashFiles('firmware/platformio.ini') }}
+      - run: pip install platformio
+      - run: pio run -d firmware
+
+  esp-idf:
+    name: firmware (ESP-IDF v5.4)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.4
+          target: esp32
+          path: firmware
+
+  # Publishes web/ to GitHub Pages so the browser version can be played
+  # online. Opt in: Settings > Pages > Source "GitHub Actions", then add a
+  # repository variable ENABLE_PAGES = true.
+  pages:
+    name: browser version on GitHub Pages
+    if: github.ref == 'refs/heads/main' && vars.ENABLE_PAGES == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+      - id: deploy
+        uses: actions/deploy-pages@v4

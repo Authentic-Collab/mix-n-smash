@@ -1,0 +1,14 @@
+{
+  // Open this file in VS Code (File > Open Workspace from File...) so the
+  // PlatformIO extension picks up the firmware project.
+  "folders": [
+    { "name": "mix-n-smash", "path": "." },
+    { "name": "firmware (Wemos ESP-WROOM-32)", "path": "firmware" }
+  ],
+  "settings": {
+    "files.exclude": { "**/.pio": true, "**/build": true, "**/managed_components": true }
+  },
+  "extensions": {
+    "recommendations": ["platformio.platformio-ide"]
+  }
+}

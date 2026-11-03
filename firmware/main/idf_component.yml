@@ -1,0 +1,5 @@
+# Components from the ESP component registry. The build downloads them into
+# managed_components/ (git-ignored).
+dependencies:
+  espressif/led_strip: "^3.0.0"
+  espressif/mdns: "^1.4.0"

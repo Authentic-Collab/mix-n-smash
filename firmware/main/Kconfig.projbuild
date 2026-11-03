@@ -1,0 +1,131 @@
+menu "Mix 'n Smash"
+
+    menu "LED strip"
+
+        config MNS_LED_COUNT
+            int "Number of LEDs"
+            range 16 400
+            default 300
+            help
+                LED 0 is next to the player. The first three show the lives,
+                LED 3 stays dark, and the dots travel over the rest.
+
+        config MNS_LED_GPIO
+            int "Data GPIO"
+            range 0 39
+            default 16
+
+        config MNS_LED_REVERSED
+            bool "Player sits at the far end of the strip"
+            default n
+            help
+                Turn on when the data input of the strip is at the far end
+                from the player: game LED 0 then maps to the last physical LED.
+
+        config MNS_LED_RGB_ORDER
+            bool "Strip expects RGB instead of GRB"
+            default n
+            help
+                WS2812B strips take GRB. If red and green come out swapped,
+                turn this on.
+
+        config MNS_BRIGHTNESS
+            int "Brightness (1-255)"
+            range 1 255
+            default 80
+            help
+                Scales every colour after gamma correction. 80 is about a
+                third of full brightness and plenty indoors.
+
+        config MNS_MAX_CURRENT_MA
+            int "Current limit (mA)"
+            range 100 20000
+            default 1500
+            help
+                Every frame the firmware estimates the current the strip would
+                draw (1 mA idle per LED plus 20 mA per fully lit colour) and
+                dims the whole frame when the estimate goes over this limit.
+                Set it below what your 5 V supply can deliver.
+
+    endmenu
+
+    menu "Buttons"
+
+        config MNS_BTN_RED_GPIO
+            int "Red button GPIO"
+            range 0 39
+            default 25
+
+        config MNS_BTN_YELLOW_GPIO
+            int "Yellow button GPIO"
+            range 0 39
+            default 26
+
+        config MNS_BTN_BLUE_GPIO
+            int "Blue button GPIO"
+            range 0 39
+            default 27
+
+        config MNS_BTN_ACTIVE_HIGH
+            bool "Buttons connect to 3.3 V instead of GND"
+            default n
+            help
+                By default a button shorts its GPIO to GND and the internal
+                pull-up is used. GPIO 34-39 have no internal pull resistors,
+                so they need external ones.
+
+    endmenu
+
+    menu "Game"
+
+        config MNS_WRONG_HIT_KEEPS_DOT
+            bool "A dot hit by the wrong colour keeps coming"
+            default n
+            help
+                Stricter rule: besides costing a life, the dot stays on the
+                strip and can cost a second one when it reaches the player.
+
+        config MNS_FRAME_MS
+            int "Frame period (ms)"
+            range 5 50
+            default 16
+
+    endmenu
+
+    menu "Wi-Fi and web interface"
+
+        config MNS_WIFI_ENABLE
+            bool "Enable Wi-Fi and the web interface"
+            default y
+
+        config MNS_WIFI_SSID
+            string "Wi-Fi network to join (empty: start an access point)"
+            default ""
+            depends on MNS_WIFI_ENABLE
+
+        config MNS_WIFI_PASSWORD
+            string "Wi-Fi password"
+            default ""
+            depends on MNS_WIFI_ENABLE
+
+        config MNS_AP_SSID
+            string "Access point name"
+            default "mix-n-smash"
+            depends on MNS_WIFI_ENABLE
+            help
+                Used when no network is configured, or when joining it fails.
+                The page is then at http://192.168.4.1.
+
+        config MNS_AP_PASSWORD
+            string "Access point password (empty or at least 8 characters)"
+            default ""
+            depends on MNS_WIFI_ENABLE
+
+        config MNS_HOSTNAME
+            string "Hostname (mDNS: <hostname>.local)"
+            default "mix-n-smash"
+            depends on MNS_WIFI_ENABLE
+
+    endmenu
+
+endmenu
