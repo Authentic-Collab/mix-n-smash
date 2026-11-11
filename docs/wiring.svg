@@ -64,7 +64,7 @@
   <rect x="480" y="300" width="420" height="44" rx="4" fill="#1d1f26" stroke="#444" stroke-width="1.5"/>
   <text x="690" y="327" fill="#f2f2f2" font-size="14" font-weight="700" text-anchor="middle">WS2812B strip, 300 LEDs (5 m at 60/m, 3 m at 100/m)</text>
   <text x="484" y="362" class="m">LED 0: player, lives</text>
-  <text x="896" y="362" class="m" text-anchor="end">far end: dots start here and move towards the player &#9664;</text>
+  <text x="896" y="362" class="m" text-anchor="end">far end: dots start here &#9664;</text>
   <line x1="520" y1="300" x2="520" y2="175" class="p5"/>
   <line x1="560" y1="300" x2="560" y2="150" class="gnd"/>
   <circle cx="520" cy="175" r="4.5" class="dot5"/>
@@ -98,9 +98,6 @@
   <circle cx="700" cy="400" r="9" fill="#ff3b30" stroke="#444"/>
   <circle cx="700" cy="430" r="9" fill="#ffbe00" stroke="#444"/>
   <circle cx="700" cy="460" r="9" fill="#2f6bff" stroke="#444"/>
-  <text x="718" y="404" class="t" paint-order="stroke" stroke="#f7f7f9" stroke-width="7" stroke-linejoin="round">red</text>
-  <text x="718" y="434" class="t" paint-order="stroke" stroke="#f7f7f9" stroke-width="7" stroke-linejoin="round">yellow</text>
-  <text x="718" y="464" class="t" paint-order="stroke" stroke="#f7f7f9" stroke-width="7" stroke-linejoin="round">blue</text>
   <line x1="709" y1="400" x2="800" y2="400" class="btn"/>
   <line x1="709" y1="430" x2="800" y2="430" class="btn"/>
   <line x1="709" y1="460" x2="800" y2="460" class="btn"/>
@@ -109,6 +106,9 @@
   <circle cx="800" cy="430" r="3" fill="#555"/>
   <circle cx="800" cy="460" r="3" fill="#555"/>
   <circle cx="800" cy="486" r="3" fill="#555"/>
+  <text x="718" y="404" class="t" paint-order="stroke" stroke="#f7f7f9" stroke-width="7" stroke-linejoin="round">red</text>
+  <text x="718" y="434" class="t" paint-order="stroke" stroke="#f7f7f9" stroke-width="7" stroke-linejoin="round">yellow</text>
+  <text x="718" y="464" class="t" paint-order="stroke" stroke="#f7f7f9" stroke-width="7" stroke-linejoin="round">blue</text>
   <text x="808" y="490" class="m">common</text>
   <text x="775" y="516" class="m" text-anchor="middle">each button shorts its wire to GND</text>
 
