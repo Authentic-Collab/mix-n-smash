@@ -60,11 +60,16 @@ Without lights, the last four conductors simply stay unconnected.
    limit at 1000 mA: nothing in the game lights more than a few dozen LEDs
    at once, and the heavy effects sit next to the feed. Above brightness
    100, also feed the far end with 2 × 1.5 mm².
-6. **USB and the strip.** With this wiring, plugging only a USB cable into
-   the ESP32 makes the PC's USB port power the whole strip through the devkit:
-   the devkit's USB side gets very hot and Windows reports "USB device not
-   recognized". Switch the 5 V supply on first, then plug in USB. The
-   [carrier board](carrier.md) has a diode that prevents this.
+6. **No USB cable while the strip is wired.** With this wiring the strip and
+   the devkit share the 5V pin, so a USB cable makes the PC's USB port feed
+   the strip through the devkit's small protection diode or fuse. Without the
+   supply it got 84 °C hot and Windows reported "USB device not recognized";
+   with the supply on it started to smoke, because the supply sags under load
+   and the PC still delivers part of the current. Switching the supply on
+   first does **not** help. To flash: do it before wiring the ESP32, or
+   disconnect the wire to the devkit's 5V pin first so USB powers the ESP32
+   alone; after that, use the firmware upload on the settings page. The
+   [carrier board](carrier.md) has a diode that makes USB safe.
 7. **Power bank.** A bank with a 2 A port is fine: typical draw is about
    0.6 A, peaks around 1.2 A. Cut a short, thick USB cable and solder it to
    the rails; thin USB cables lose 0.3 to 0.5 V at 1 A. Set

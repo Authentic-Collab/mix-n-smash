@@ -6,9 +6,11 @@ setup more robust:
 
 - **D1, a Schottky diode in the ESP32's 5 V feed.** The supply still powers
   the ESP32, but a USB cable alone can no longer power the strip through the
-  devkit. That is what made the devkit's USB side run at 84 °C and Windows
-  report "USB device not recognized". You can now plug in USB at any time;
-  without the supply the strip simply stays dark.
+  devkit. Without it, the PC fed the strip through the devkit's small
+  protection part: 84 °C with the supply off, smoke with the supply on.
+  With D1 the PC can only power the ESP32 itself, so you can plug in USB at
+  any time, with or without the supply; without the supply the strip simply
+  stays dark.
 - **U1, a 74AHCT125 level shifter** for the strip data, so the strip gets a
   clean 5 V signal. It sits in a socket and is optional, see the notes.
 - **C1, 1000 µF** across the strip supply, against the inrush when the strip

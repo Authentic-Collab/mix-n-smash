@@ -52,9 +52,15 @@ layout for the same setup with a removable ESP32, screw terminals, an RJ45
 socket for the button cable, a level shifter, and a diode so a USB cable
 alone can never power the strip.
 
-**Flashing over USB:** switch the strip's 5 V supply on first. Otherwise the
-PC's USB port tries to power the strip through the devkit, which gets hot,
-and Windows reports "USB device not recognized".
+**Never plug a USB cable into the ESP32 while the strip's 5 V is wired to the
+devkit's 5V/VIN pin**, whether the supply is switched on or not. The PC's USB
+port then feeds the strip through the devkit's own small protection diode or
+fuse, which overheats: it got 84 °C hot with the supply off, and started to
+smoke with the supply on (the supply sags under load, so the PC still
+delivers part of the strip current). Flash the ESP32 before wiring it up,
+disconnect the devkit's 5 V wire first, use the firmware upload on the
+settings page, or use the [carrier board](docs/carrier.md), whose diode makes
+USB safe.
 
 The player sits at the start of the strip (LED 0, nearest the data input).
 If your strip is the other way around, turn on *Player sits at the far end* in
