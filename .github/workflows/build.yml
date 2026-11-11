@@ -21,6 +21,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: python3 tools/build_web.py --check
+      - name: Carrier board layout check
+        run: python3 tools/carrier_layout.py --check
 
   platformio:
     name: firmware (PlatformIO)

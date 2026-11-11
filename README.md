@@ -47,7 +47,14 @@ speed and the dots per level can be changed. Scores stay in the browser.
 
 [docs/wiring.md](docs/wiring.md) has the wiring diagram for the minimal
 setup (ESP32 box at the strip, buttons over an ethernet cable) with pins,
-cable types and lengths.
+cable types and lengths. [docs/carrier.md](docs/carrier.md) is a perfboard
+layout for the same setup with a removable ESP32, screw terminals, an RJ45
+socket for the button cable, a level shifter, and a diode so a USB cable
+alone can never power the strip.
+
+**Flashing over USB:** switch the strip's 5 V supply on first. Otherwise the
+PC's USB port tries to power the strip through the devkit, which gets hot,
+and Windows reports "USB device not recognized".
 
 The player sits at the start of the strip (LED 0, nearest the data input).
 If your strip is the other way around, turn on *Player sits at the far end* in
@@ -257,6 +264,8 @@ game/        game.h, game.c   the rules; also an ESP-IDF component
 web/         index.html, game.js   the four web views and the browser version
 firmware/    PlatformIO + ESP-IDF project (main/ has the sources)
 docs/        wiring.md, wiring.svg   how to connect everything
+             carrier.md, carrier-*pin.svg   perfboard layout with a removable ESP32
 tests/       unit tests, trace comparison, Makefile
 tools/       build_web.py   bundles web/ into firmware/main/web_page.h
+             carrier_layout.py   draws and checks the carrier board layout
 ```

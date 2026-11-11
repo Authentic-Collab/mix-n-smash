@@ -8,6 +8,10 @@ this is the simplest version that works. Lights in the buttons are optional
 
 ![Wiring diagram](wiring.svg)
 
+Want the ESP32 to be removable, with screw terminals and an RJ45 socket for
+the button cable? See the [carrier board](carrier.md): the same connections on
+a perfboard, plus a diode so a USB cable alone can never power the strip.
+
 ## Connections
 
 | From | To | Wire | Notes |
@@ -56,14 +60,19 @@ Without lights, the last four conductors simply stay unconnected.
    limit at 1000 mA: nothing in the game lights more than a few dozen LEDs
    at once, and the heavy effects sit next to the feed. Above brightness
    100, also feed the far end with 2 × 1.5 mm².
-6. **Power bank.** A bank with a 2 A port is fine: typical draw is about
+6. **USB and the strip.** With this wiring, plugging only a USB cable into
+   the ESP32 makes the PC's USB port power the whole strip through the devkit:
+   the devkit's USB side gets very hot and Windows reports "USB device not
+   recognized". Switch the 5 V supply on first, then plug in USB. The
+   [carrier board](carrier.md) has a diode that prevents this.
+7. **Power bank.** A bank with a 2 A port is fine: typical draw is about
    0.6 A, peaks around 1.2 A. Cut a short, thick USB cable and solder it to
    the rails; thin USB cables lose 0.3 to 0.5 V at 1 A. Set
    *Current limit* to 1000 mA in menuconfig.
-7. **Pins to avoid** for the buttons: GPIO 34 to 39 have no internal
+8. **Pins to avoid** for the buttons: GPIO 34 to 39 have no internal
    pull-ups, GPIO 0, 2, 12 and 15 are strapping pins. GPIO 25, 26 and 27 are
    safe on every ESP32 board.
-8. **Orientation.** LED 0 (the data input) is next to the player and shows
+9. **Orientation.** LED 0 (the data input) is next to the player and shows
    the lives; dots come from the far end. If your strip's input ends up at
    the far end, turn on *Player sits at the far end* in menuconfig instead of
    rewiring.
