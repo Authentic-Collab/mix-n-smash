@@ -162,6 +162,6 @@
   <text x="42" y="773" class="note">4. Buttons need no resistors: the firmware turns on the internal pull-ups. Phantom presses on a long cable? Add 10 k&#937; pull-ups at the ESP32.</text>
   <text x="42" y="793" class="note">5. Feed the strip at LED 0. With brightness 80 and the 1000 mA limit one feed is enough; above brightness 100, also feed the far end.</text>
   <text x="42" y="813" class="note">6. Lights: white or blue 5 V LED modules only. The GPIO sinks about 11 mA; when off the pin sees roughly 2.5 to 2.9 V (measure: under 3.3 V).</text>
-  <text x="42" y="833" class="note">7. menuconfig &#8594; Mix 'n Smash: 300 LEDs, data GPIO 16, buttons GPIO 25/26/27, current limit 1000 mA, "Lights in the buttons" on when wired.</text>
+  <text x="42" y="833" class="note">7. Defaults in menuconfig &#8594; Mix 'n Smash (300 LEDs, GPIO 16, buttons 25/26/27, lights off); change them later on the web settings page.</text>
   <text x="42" y="853" class="note">8. GPIO 34 to 39 have no pull-ups and cannot drive anything; GPIO 0, 2, 12, 15 are strapping pins. Keep buttons and lights off those.</text>
 </svg>

@@ -70,7 +70,10 @@ Without lights, the last four conductors simply stay unconnected.
 
 ## Firmware settings for this build
 
-`pio run -t menuconfig` → *Mix 'n Smash*:
+These are the menuconfig defaults (`pio run -t menuconfig` → *Mix 'n Smash*).
+Everything except the strip direction and the frame period can also be
+changed later on the settings page of the web interface, which wins once
+saved; holding red + blue while powering on brings the defaults back.
 
 | Setting | Value |
 |---|---|

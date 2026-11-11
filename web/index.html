@@ -7,15 +7,19 @@
 <style>
   :root {
     --bg: #111318; --panel: #1b1e26; --panel-2: #242837; --text: #e8e8ec; --muted: #9a9fae;
-    --red: #ff3b30; --yellow: #ffbe00; --blue: #2f6bff; --accent: #ffbe00;
+    --red: #ff3b30; --yellow: #ffbe00; --blue: #2f6bff; --accent: #ffbe00; --ok: #7ee2a5; --warn: #ffb347;
   }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
   header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; max-width: 1100px; margin: 0 auto; padding: 14px 16px 6px; }
   h1 { margin: 0; font-size: 1.5rem; letter-spacing: .5px; }
   h1 .r { color: var(--red); } h1 .y { color: var(--yellow); } h1 .b { color: var(--blue); }
+  nav { display: flex; gap: 6px; flex-wrap: wrap; }
+  nav a { color: var(--muted); text-decoration: none; padding: 6px 10px; border-radius: 8px; font-size: .95rem; }
+  nav a.active { background: var(--panel-2); color: var(--text); }
+  nav a:hover { color: var(--text); }
   .badge { font-size: .8rem; padding: 4px 10px; border-radius: 999px; background: var(--panel-2); color: var(--muted); }
-  .badge.live { background: #173d2a; color: #7ee2a5; }
+  .badge.live { background: #173d2a; color: var(--ok); }
   .badge.lost { background: #4a1d1a; color: #ff9d96; }
   main { max-width: 1100px; margin: 0 auto; padding: 0 16px 32px; }
   .strip-wrap { background: #000; border-radius: 12px; padding: 10px; }
@@ -26,8 +30,9 @@
   .stat .v { font-size: 1.35rem; font-weight: 700; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .stat .v.lives { color: var(--red); letter-spacing: .1em; }
   .buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 10px 0; }
-  .btn { border: 0; border-radius: 14px; padding: 20px 8px; font-size: 1.15rem; font-weight: 700; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: manipulation; transition: transform .05s, filter .05s; }
+  .btn { border: 0; border-radius: 14px; padding: 20px 8px; font-size: 1.15rem; font-weight: 700; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: manipulation; transition: transform .05s, filter .05s, opacity .2s; }
   .btn.down { transform: scale(.96); filter: brightness(1.25); }
+  .btn:disabled { opacity: .35; cursor: default; }
   .btn.red { background: var(--red); color: #fff; }
   .btn.yellow { background: var(--yellow); color: #221a00; }
   .btn.blue { background: var(--blue); color: #fff; }
@@ -36,10 +41,15 @@
   .panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
   .panel { background: var(--panel); border-radius: 12px; padding: 14px 16px; }
   .panel h2 { margin: 0 0 10px; font-size: 1.05rem; }
-  form { display: flex; gap: 8px; }
-  input[type=text], input[type=number] { flex: 1; min-width: 0; background: #0f1116; color: var(--text); border: 1px solid #333848; border-radius: 8px; padding: 10px; font-size: 1rem; }
+  .panel h3 { margin: 14px 0 6px; font-size: .9rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .panel.wide { grid-column: 1 / -1; }
+  form.row, .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0; }
+  input[type=text], input[type=number], input[type=password] { flex: 1; min-width: 0; background: #0f1116; color: var(--text); border: 1px solid #333848; border-radius: 8px; padding: 10px; font-size: 1rem; }
+  input[type=number] { max-width: 120px; }
   button.secondary { background: var(--panel-2); color: var(--text); border: 0; border-radius: 8px; padding: 10px 14px; font-size: .95rem; cursor: pointer; }
   button.secondary:hover { background: #353a49; }
+  button.secondary.danger { color: #ff9d96; }
+  button.secondary.primary { background: var(--accent); color: #221a00; font-weight: 700; }
   table { width: 100%; border-collapse: collapse; font-size: .95rem; }
   td, th { padding: 6px 4px; text-align: left; border-bottom: 1px solid #262a36; }
   th { color: var(--muted); font-weight: 600; font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; }
@@ -49,26 +59,41 @@
   .rules b { color: var(--text); }
   .dot { display: inline-block; width: .75em; height: .75em; border-radius: 50%; vertical-align: -.05em; margin: 0 .1em; }
   label.check { display: flex; align-items: center; gap: 8px; margin: 10px 0; color: var(--muted); }
-  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0; }
+  label.field { display: grid; gap: 4px; color: var(--muted); font-size: .85rem; margin: 8px 0; }
+  label.field input, label.field select { width: 100%; max-width: none; }
+  select { background: #0f1116; color: var(--text); border: 1px solid #333848; border-radius: 8px; padding: 10px; font-size: 1rem; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0 14px; }
   .muted { color: var(--muted); font-size: .85rem; margin: 8px 0 0; }
-  .panel.wide { grid-column: 1 / -1; }
+  .muted a, .panel a { color: var(--accent); }
+  .status { font-size: .9rem; min-height: 1.3em; }
+  .status.ok { color: var(--ok); } .status.err { color: #ff9d96; }
+  .banner { background: #4a3a12; color: var(--warn); border-radius: 10px; padding: 10px 14px; margin: 10px 0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .queue li { display: flex; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid #262a36; }
+  .queue li .n { flex: 1; }
+  .queue li.me .n { color: var(--accent); font-weight: 700; }
+  .queue { list-style: none; margin: 0; padding: 0; }
+  .pill { font-size: .75rem; padding: 2px 8px; border-radius: 999px; background: var(--panel-2); color: var(--muted); }
+  .pill.now { background: #173d2a; color: var(--ok); }
   .palette { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 10px; margin: 10px 0; }
   .prow { display: grid; grid-template-columns: minmax(84px, 1fr) auto auto auto auto; gap: 6px; align-items: center; background: var(--panel-2); border-radius: 10px; padding: 8px 10px; }
   .prow .lbl { font-weight: 600; min-width: 0; }
   .prow .lbl small { display: block; color: var(--muted); font-weight: 400; font-size: .78rem; }
   .prow input[type=color] { width: 44px; height: 34px; border: 0; background: none; padding: 0; cursor: pointer; }
   .prow input[type=number] { width: 60px; padding: 6px 4px; font-size: .95rem; }
+  progress { width: 100%; }
   .hidden { display: none !important; }
 </style>
 </head>
 <body>
 <header>
   <h1>Mi<span class="r">x</span> 'n Sma<span class="y">s</span><span class="b">h</span></h1>
-  <div class="row">
-    <button id="paletteToggle" class="secondary">Kleuren</button>
-    <button id="toggleMode" class="secondary hidden">Speel hier in de browser</button>
-    <span id="badge" class="badge">…</span>
-  </div>
+  <nav id="nav">
+    <a href="/" data-view="watch">Kijken</a>
+    <a href="/play" data-view="play" id="navPlay">Spelen</a>
+    <a href="/practice" data-view="practice">Oefenen</a>
+    <a href="/settings" data-view="settings">Instellingen</a>
+  </nav>
+  <span id="badge" class="badge">…</span>
 </header>
 <main>
   <div class="strip-wrap"><canvas id="strip" width="300" height="40"></canvas></div>
@@ -81,72 +106,255 @@
     <div class="stat"><div class="k">Speler</div><div class="v" id="playerName">–</div></div>
   </div>
 
-  <div class="buttons">
+  <div class="buttons" id="buttons">
     <button class="btn red" data-color="1">Rood<kbd>← pijl links</kbd></button>
     <button class="btn yellow" data-color="2">Geel<kbd>↓ pijl omlaag</kbd></button>
     <button class="btn blue" data-color="4">Blauw<kbd>→ pijl rechts</kbd></button>
   </div>
   <p class="hint" id="hint"></p>
 
-  <div class="panels">
-    <section class="panel wide hidden" id="palettePanel">
-      <h2>Kleuren</h2>
-      <p class="muted">Zolang dit paneel open is, toont de strip vanaf de eerste LED elke kleur als drie LEDs aan en twee uit. Het spel staat ondertussen stil. Wijzigingen zie je meteen; <b>Opslaan</b> bewaart ze, <b>Standaard</b> zet alles terug.</p>
-      <div class="palette" id="paletteRows"></div>
-      <div class="row">
-        <button id="paletteSave" class="secondary">Opslaan</button>
-        <button id="paletteReset" class="secondary">Standaard</button>
-        <button id="paletteClose" class="secondary">Sluiten</button>
-        <span id="paletteStatus" class="muted"></span>
-      </div>
-    </section>
-
-    <section class="panel">
-      <h2>Speler</h2>
-      <form id="nameForm">
-        <input type="text" id="name" maxlength="16" placeholder="Je naam" autocomplete="off">
-        <button class="secondary" type="submit">Opslaan</button>
-      </form>
-      <p class="muted" id="playerHelp">De volgende spellen komen onder deze naam in de lijst.</p>
-    </section>
-
+  <!-- ================= WATCH ================= -->
+  <section class="view panels" data-view="watch">
     <section class="panel">
       <h2>Highscores</h2>
       <table>
         <thead><tr><th class="num">#</th><th>Naam</th><th class="num">Score</th><th class="num">Level</th></tr></thead>
-        <tbody id="scores"></tbody>
+        <tbody class="scoresBody"></tbody>
       </table>
-      <div class="row"><button id="clearScores" class="secondary">Wis de lijst</button></div>
     </section>
-
-    <section class="panel" id="simPanel">
-      <h2>Simulatie</h2>
-      <div class="row">
-        <label for="nLeds" class="muted">Aantal LEDs</label>
-        <input type="number" id="nLeds" min="16" max="400" value="300" style="max-width: 110px">
-        <button id="applySettings" class="secondary">Nieuw spel</button>
-      </div>
-      <label class="check"><input type="checkbox" id="keepsDot"> Een stip die door een foute kleur geraakt wordt, blijft komen</label>
-      <p class="muted">Dezelfde regels, dezelfde snelheden en dezelfde animaties als op de echte strip.</p>
-    </section>
-
-    <section class="panel" id="livePanel">
-      <h2>Live</h2>
-      <p class="muted" id="liveInfo">Je ziet de strip die aan de ESP32 hangt. De knoppen en pijltjestoetsen hier drukken op de echte knoppen.</p>
-    </section>
-
     <section class="panel">
       <h2>Spelregels</h2>
       <ul class="rules">
         <li>Gekleurde stippen komen van rechts naar je toe. Je staat links, bij de drie <b>levens</b>.</li>
         <li>Een <b>primaire kleur</b> (<span class="dot" style="background:#f00"></span>rood, <span class="dot" style="background:#ffbe00"></span>geel, <span class="dot" style="background:#2f6bff"></span>blauw) schiet je weg met dezelfde knop.</li>
         <li>Een <b>mengkleur</b> heeft twee kleuren nodig: <span class="dot" style="background:#ff4600"></span>oranje = rood + geel, <span class="dot" style="background:#aa00ff"></span>paars = rood + blauw, <span class="dot" style="background:#0f0"></span>groen = geel + blauw. Raak je oranje met geel, dan blijft er een rode stip over.</li>
-        <li>Vanaf level 5 komt er <span class="dot" style="background:#fff"></span><b>wit</b> bij: alle drie de kleuren.</li>
+        <li>Vanaf level 5 komt er <span class="dot" style="background:#ddd"></span><b>wit</b> bij: alle drie de kleuren.</li>
         <li>Een <b>foute kleur</b> of een stip die je bereikt kost een leven. Een schot dat niets raakt kost niets.</li>
         <li>Elk level heeft een vast aantal stippen. Daarna een regenboog, een leven terug, en het wordt sneller met meer mengkleuren en meer stippen tegelijk.</li>
       </ul>
     </section>
-  </div>
+  </section>
+
+  <!-- ================= PLAY ================= -->
+  <section class="view panels" data-view="play">
+    <section class="panel" id="playOff">
+      <h2>Spelen via je telefoon</h2>
+      <p class="muted">Staat uit. De beheerder zet het aan door op de instellingenpagina een spelerswachtwoord te kiezen. Spelen kan nu alleen met de knoppen aan de strip.</p>
+    </section>
+    <section class="panel hidden" id="playLogin">
+      <h2>Spelerswachtwoord</h2>
+      <form class="row" id="playLoginForm">
+        <input type="password" id="playPassword" placeholder="Wachtwoord" autocomplete="current-password">
+        <button class="secondary primary" type="submit">Verder</button>
+      </form>
+      <p class="status" id="playLoginStatus"></p>
+    </section>
+    <section class="panel hidden" id="playPanel">
+      <h2>Wie speelt</h2>
+      <ul class="queue" id="queueList"></ul>
+      <form class="row" id="joinForm">
+        <input type="text" id="joinName" maxlength="16" placeholder="Je naam" autocomplete="off">
+        <button class="secondary primary" type="submit">Doe mee</button>
+      </form>
+      <div class="row hidden" id="suggestRow">
+        <span class="status err" id="suggestText"></span>
+        <button class="secondary" type="button" id="suggestBtn"></button>
+      </div>
+      <p class="status" id="joinStatus"></p>
+      <div class="row"><button class="secondary hidden" id="leaveBtn">Ik stop</button></div>
+      <p class="muted">Zolang iemand via de telefoon speelt, staan de knoppen aan de strip uit. Wachten? <a href="/practice">Oefen in je browser</a>.</p>
+    </section>
+    <section class="panel">
+      <h2>Highscores</h2>
+      <table>
+        <thead><tr><th class="num">#</th><th>Naam</th><th class="num">Score</th><th class="num">Level</th></tr></thead>
+        <tbody class="scoresBody"></tbody>
+      </table>
+    </section>
+  </section>
+
+  <!-- ================= PRACTICE ================= -->
+  <section class="view panels" data-view="practice">
+    <section class="panel">
+      <h2>Oefenen in de browser</h2>
+      <div class="row">
+        <label for="nLeds" class="muted">Aantal LEDs</label>
+        <input type="number" id="nLeds" min="16" max="400" value="300">
+        <label for="simSpeed" class="muted">Snelheid %</label>
+        <input type="number" id="simSpeed" min="25" max="300" value="100">
+      </div>
+      <div class="row">
+        <label for="simDots" class="muted">Stippen level 1</label>
+        <input type="number" id="simDots" min="1" max="200" value="8">
+        <label for="simDotsPer" class="muted">Extra per level</label>
+        <input type="number" id="simDotsPer" min="0" max="50" value="2">
+      </div>
+      <label class="check"><input type="checkbox" id="keepsDot"> Een stip die door een foute kleur geraakt wordt, blijft komen</label>
+      <div class="row">
+        <button id="applySettings" class="secondary primary">Nieuw spel</button>
+        <button id="paletteTogglePractice" class="secondary">Kleuren</button>
+      </div>
+      <p class="muted">Dezelfde regels, snelheden en animaties als op de echte strip. Scores blijven in deze browser.</p>
+    </section>
+    <section class="panel">
+      <h2>Naam</h2>
+      <form class="row" id="localNameForm">
+        <input type="text" id="localName" maxlength="16" placeholder="Je naam" autocomplete="off">
+        <button class="secondary" type="submit">Opslaan</button>
+      </form>
+      <h3>Highscores in deze browser</h3>
+      <table>
+        <thead><tr><th class="num">#</th><th>Naam</th><th class="num">Score</th><th class="num">Level</th></tr></thead>
+        <tbody id="localScores"></tbody>
+      </table>
+      <div class="row"><button id="clearLocalScores" class="secondary">Wis de lijst</button></div>
+    </section>
+  </section>
+
+  <!-- ================= SETTINGS ================= -->
+  <section class="view panels" data-view="settings">
+    <section class="panel hidden" id="adminSetup">
+      <h2>Welkom! Kies een instellingenwachtwoord</h2>
+      <p class="muted">Er is nog geen wachtwoord. Wie dit wachtwoord kent, kan alles instellen en spelers kiezen. Minstens 4 tekens.</p>
+      <form class="row" id="adminSetupForm">
+        <input type="password" id="setupPw1" placeholder="Wachtwoord" autocomplete="new-password">
+        <input type="password" id="setupPw2" placeholder="Nog eens" autocomplete="new-password">
+        <button class="secondary primary" type="submit">Instellen</button>
+      </form>
+      <p class="status" id="setupStatus"></p>
+    </section>
+    <section class="panel hidden" id="adminLogin">
+      <h2>Instellingenwachtwoord</h2>
+      <form class="row" id="adminLoginForm">
+        <input type="password" id="adminPassword" placeholder="Wachtwoord" autocomplete="current-password">
+        <button class="secondary primary" type="submit">Aanmelden</button>
+      </form>
+      <p class="status" id="adminLoginStatus"></p>
+    </section>
+
+    <div class="panels wide hidden" id="adminPanel" style="grid-column: 1 / -1; display: contents;">
+      <section class="panel wide">
+        <div class="row">
+          <span id="statusLine" class="muted"></span>
+          <span style="flex:1"></span>
+          <button id="paletteToggleAdmin" class="secondary">Kleuren</button>
+          <button id="restartBtn" class="secondary">Herstarten</button>
+          <button id="logoutBtn" class="secondary">Afmelden</button>
+        </div>
+        <div class="banner hidden" id="restartBanner">Er zijn instellingen gewijzigd die pas na een herstart werken.<button id="restartBtn2" class="secondary">Nu herstarten</button></div>
+      </section>
+
+      <section class="panel">
+        <h2>Wachtrij</h2>
+        <ul class="queue" id="adminQueue"></ul>
+        <p class="muted" id="adminQueueNote"></p>
+        <div class="row"><button id="abortBtn" class="secondary danger">Spel afbreken</button></div>
+      </section>
+
+      <section class="panel">
+        <h2>Wachtwoorden</h2>
+        <h3>Instellingen</h3>
+        <form class="row" id="adminPwForm">
+          <input type="password" id="adminPw1" placeholder="Nieuw wachtwoord" autocomplete="new-password">
+          <input type="password" id="adminPw2" placeholder="Nog eens" autocomplete="new-password">
+          <button class="secondary" type="submit">Wijzig</button>
+        </form>
+        <h3>Spelers</h3>
+        <p class="muted" id="playerPwInfo"></p>
+        <form class="row" id="playerPwForm">
+          <input type="password" id="playerPw" placeholder="Spelerswachtwoord" autocomplete="new-password">
+          <button class="secondary" type="submit">Instellen</button>
+          <button class="secondary danger" type="button" id="playerPwClear">Uitzetten</button>
+        </form>
+        <p class="status" id="pwStatus"></p>
+      </section>
+
+      <section class="panel wide">
+        <h2>Instellingen</h2>
+        <form id="settingsForm">
+          <h3>Wi-Fi <span class="pill">herstart nodig</span></h3>
+          <div class="grid2">
+            <label class="field">Naam van het eigen accesspoint<input type="text" name="ap_ssid" maxlength="32"></label>
+            <label class="field">Wachtwoord accesspoint (leeg = open netwerk)<input type="password" name="ap_password" maxlength="63" placeholder="" autocomplete="new-password"></label>
+            <label class="field">Thuisnetwerk (leeg = eigen accesspoint)<input type="text" name="sta_ssid" maxlength="32"></label>
+            <label class="field">Wachtwoord thuisnetwerk<input type="password" name="sta_password" maxlength="63" placeholder="" autocomplete="new-password"></label>
+            <label class="field">Hostnaam (http://&lt;naam&gt;.local)<input type="text" name="hostname" maxlength="32"></label>
+          </div>
+          <h3>Strip</h3>
+          <div class="grid2">
+            <label class="field">Aantal LEDs <span class="pill">herstart</span><input type="number" name="led_count" min="16" max="400"></label>
+            <label class="field">Data-GPIO <span class="pill">herstart</span><input type="number" name="led_gpio" min="0" max="33"></label>
+            <label class="field">Helderheid (1-255)<input type="number" name="brightness" min="1" max="255"></label>
+            <label class="field">Stroomlimiet (mA)<input type="number" name="max_current_ma" min="100" max="20000"></label>
+          </div>
+          <label class="check"><input type="checkbox" name="rgb_order"> Strip verwacht RGB in plaats van GRB <span class="pill">herstart</span></label>
+          <h3>Spel</h3>
+          <div class="grid2">
+            <label class="field">Stippen in level 1<input type="number" name="level1_dots" min="1" max="200"></label>
+            <label class="field">Extra stippen per level<input type="number" name="dots_per_level" min="0" max="50"></label>
+            <label class="field">Snelheid (%)<input type="number" name="speed_pct" min="25" max="300"></label>
+            <label class="field">Beurtwissel na<select name="games_per_turn"><option value="0">uit (speler houdt de beurt)</option><option value="1">1 spel</option><option value="2">2 spellen</option><option value="3">3 spellen</option></select></label>
+          </div>
+          <label class="check"><input type="checkbox" name="wrong_hit_keeps_dot"> Een stip die door een foute kleur geraakt wordt, blijft komen</label>
+          <h3>Knoppen <span class="pill">herstart nodig</span></h3>
+          <div class="grid2">
+            <label class="field">GPIO rood<input type="number" name="btn_red_gpio" min="0" max="39"></label>
+            <label class="field">GPIO geel<input type="number" name="btn_yellow_gpio" min="0" max="39"></label>
+            <label class="field">GPIO blauw<input type="number" name="btn_blue_gpio" min="0" max="39"></label>
+          </div>
+          <label class="check"><input type="checkbox" name="btn_active_high"> Knoppen schakelen naar 3,3 V in plaats van naar 0 V</label>
+          <h3>Knopverlichting <span class="pill">herstart nodig</span></h3>
+          <label class="check"><input type="checkbox" name="lights"> Verlichting aan</label>
+          <div class="grid2">
+            <label class="field">GPIO rood<input type="number" name="light_red_gpio" min="0" max="33"></label>
+            <label class="field">GPIO geel<input type="number" name="light_yellow_gpio" min="0" max="33"></label>
+            <label class="field">GPIO blauw<input type="number" name="light_blue_gpio" min="0" max="33"></label>
+          </div>
+          <label class="check"><input type="checkbox" name="lights_active_high"> Via transistor (hoog = aan); uit = de pin trekt de LED-stroom zelf weg</label>
+          <div class="row">
+            <button class="secondary primary" type="submit">Opslaan</button>
+            <button class="secondary danger" type="button" id="settingsResetBtn">Terug naar standaard</button>
+            <span class="status" id="settingsStatus"></span>
+          </div>
+        </form>
+      </section>
+
+      <div class="wide hidden" id="palettePanelHost" style="grid-column: 1 / -1;"></div>
+
+      <section class="panel">
+        <h2>Highscores</h2>
+        <table>
+          <thead><tr><th class="num">#</th><th>Naam</th><th class="num">Score</th><th class="num">Level</th></tr></thead>
+          <tbody class="scoresBody"></tbody>
+        </table>
+        <div class="row"><button id="clearScores" class="secondary danger">Wis de lijst</button></div>
+      </section>
+
+      <section class="panel">
+        <h2>Firmware</h2>
+        <p class="muted">Upload een nieuw <code>firmware.bin</code> (uit <code>.pio/build/wemos-esp32/</code>). De ESP32 herstart daarna vanzelf.</p>
+        <div class="row">
+          <input type="file" id="otaFile" accept=".bin">
+          <button id="otaBtn" class="secondary">Upload</button>
+        </div>
+        <progress id="otaProgress" value="0" max="100" class="hidden"></progress>
+        <p class="status" id="otaStatus"></p>
+      </section>
+    </div>
+  </section>
+
+  <!-- colour panel, moved into the settings or practice view by script -->
+  <section class="panel wide hidden" id="palettePanel">
+    <h2>Kleuren</h2>
+    <p class="muted">Zolang dit paneel open is, toont de strip vanaf de eerste LED elke kleur als drie LEDs aan en twee uit. Het spel staat ondertussen stil. Wijzigingen zie je meteen; <b>Opslaan</b> bewaart ze, <b>Standaard</b> zet alles terug.</p>
+    <div class="palette" id="paletteRows"></div>
+    <div class="row">
+      <button id="paletteSave" class="secondary">Opslaan</button>
+      <button id="paletteReset" class="secondary">Standaard</button>
+      <button id="paletteClose" class="secondary">Sluiten</button>
+      <span id="paletteStatus" class="muted"></span>
+    </div>
+  </section>
 </main>
 
 <script src="game.js"></script>
@@ -161,187 +369,41 @@
   var KEYS = { ArrowLeft: G.RED, ArrowDown: G.YELLOW, ArrowRight: G.BLUE };
   var COLOR_NAMES = {}; COLOR_NAMES[G.RED] = 'red'; COLOR_NAMES[G.YELLOW] = 'yellow'; COLOR_NAMES[G.BLUE] = 'blue';
   var HINTS = {
-    attract: 'Druk op een knop of een pijltjestoets om te starten.',
+    attract: 'Druk op een knop om te starten.',
     countdown: 'Klaar? De balk telt af…',
     playing: '← rood   ↓ geel   → blauw',
-    level_clear: 'Level gehaald! Je krijgt een leven terug.',
+    level_clear: 'Level gehaald! Een leven terug.',
     game_over: 'Game over. Druk op een knop voor een nieuw spel.',
     preview: 'Kleurenvoorbeeld op de strip: drie LEDs aan, twee uit, per kleur.'
   };
 
-  var mode = null;                 /* 'sim' or 'live' */
   var served = false;              /* page comes from the ESP32 */
+  var view = 'watch';
+  var last = null;                 /* last state from the device */
+  var me = { admin: false, player: false, position: -1 };
   var sim = { g: null, leds: null, acc: 0, last: 0, raf: 0 };
-  var live = { timer: null, state: null, failures: 0 };
+  var live = { ws: null, poll: null, retry: null, failures: 0 };
+  var queueTimer = null;
 
-  /* ---- Colour palette --------------------------------------------------- */
-
-  var PALETTE = [
-    { key: 'red',    mask: G.RED,    label: 'Rood' },
-    { key: 'orange', mask: G.ORANGE, label: 'Oranje', note: 'rood + geel' },
-    { key: 'yellow', mask: G.YELLOW, label: 'Geel' },
-    { key: 'green',  mask: G.GREEN,  label: 'Groen',  note: 'geel + blauw' },
-    { key: 'blue',   mask: G.BLUE,   label: 'Blauw' },
-    { key: 'purple', mask: G.PURPLE, label: 'Paars',  note: 'rood + blauw' },
-    { key: 'white',  mask: G.WHITE,  label: 'Wit',    note: 'rood + geel + blauw' }
-  ];
-  var palette = { open: false, rows: {}, heartbeat: null, pending: {}, timer: null };
-
-  function hexOf(c) {
-    return [c.r, c.g, c.b].map(function (v) { return ('0' + v.toString(16)).slice(-2); }).join('');
-  }
-  function rgbOf(hex) {
-    hex = String(hex).replace('#', '');
-    if (!/^[0-9a-fA-F]{6}$/.test(hex)) return null;
-    return { r: parseInt(hex.substr(0, 2), 16), g: parseInt(hex.substr(2, 2), 16), b: parseInt(hex.substr(4, 2), 16) };
-  }
-  function clamp255(v) { v = parseInt(v, 10); return isNaN(v) ? 0 : Math.max(0, Math.min(255, v)); }
-
-  function localPalette() {
-    try { return JSON.parse(localStorage.getItem('mns.palette') || '{}'); } catch (e) { return {}; }
-  }
-  function applyLocalPalette(g) {
-    var stored = localPalette();
-    PALETTE.forEach(function (p) {
-      var c = stored[p.key] && rgbOf(stored[p.key]);
-      if (c) G.setColor(g, p.mask, c);
+  function api(method, path, data) {
+    var opts = { method: method, cache: 'no-store', credentials: 'same-origin' };
+    if (data !== undefined) {
+      opts.headers = { 'Content-Type': 'application/json' };
+      opts.body = JSON.stringify(data);
+    }
+    return fetch(path, opts).then(function (r) {
+      if (r.status === 204) return { ok: true, status: 204, data: {} };
+      return r.text().then(function (t) {
+        var d = {};
+        try { d = t ? JSON.parse(t) : {}; } catch (e) { d = {}; }
+        return { ok: r.ok, status: r.status, data: d };
+      });
     });
   }
-
-  function buildPaletteRows() {
-    var host = $('paletteRows');
-    PALETTE.forEach(function (p) {
-      var row = document.createElement('div');
-      row.className = 'prow';
-      var lbl = document.createElement('div');
-      lbl.className = 'lbl';
-      lbl.textContent = p.label;
-      if (p.note) { var sm = document.createElement('small'); sm.textContent = p.note; lbl.appendChild(sm); }
-      row.appendChild(lbl);
-      var picker = document.createElement('input');
-      picker.type = 'color';
-      picker.title = p.label;
-      row.appendChild(picker);
-      var nums = ['r', 'g', 'b'].map(function (ch) {
-        var inp = document.createElement('input');
-        inp.type = 'number'; inp.min = 0; inp.max = 255; inp.title = p.label + ' ' + ch.toUpperCase();
-        inp.setAttribute('aria-label', p.label + ' ' + ch.toUpperCase());
-        row.appendChild(inp);
-        return inp;
-      });
-      palette.rows[p.key] = { picker: picker, nums: nums };
-      picker.addEventListener('input', function () {
-        var c = rgbOf(picker.value);
-        if (c) paletteChange(p, c);
-      });
-      nums.forEach(function (inp) {
-        inp.addEventListener('input', function () {
-          paletteChange(p, { r: clamp255(nums[0].value), g: clamp255(nums[1].value), b: clamp255(nums[2].value) });
-        });
-      });
-      host.appendChild(row);
-    });
-  }
-
-  function showPaletteColor(key, c) {
-    var r = palette.rows[key];
-    r.picker.value = '#' + hexOf(c);
-    if (document.activeElement !== r.nums[0]) r.nums[0].value = c.r;
-    if (document.activeElement !== r.nums[1]) r.nums[1].value = c.g;
-    if (document.activeElement !== r.nums[2]) r.nums[2].value = c.b;
-  }
-
-  function showPaletteFrom(colors) {
-    PALETTE.forEach(function (p) {
-      var c = colors[p.key];
-      if (c) showPaletteColor(p.key, c);
-    });
-  }
-
-  function paletteChange(p, c) {
-    showPaletteColor(p.key, c);
-    if (mode === 'live') {
-      palette.pending[p.key] = hexOf(c);
-      clearTimeout(palette.timer);
-      palette.timer = setTimeout(flushPalette, 120);
-    } else if (sim.g) {
-      G.setColor(sim.g, p.mask, c);
-    }
-    $('paletteStatus').textContent = '';
-  }
-
-  function flushPalette() {
-    var body = palette.pending;
-    palette.pending = {};
-    fetch('/api/palette', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(body) }).catch(function () {});
-  }
-
-  function paletteLoad() {
-    if (mode === 'live') {
-      fetch('/api/palette', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
-        var colors = {};
-        PALETTE.forEach(function (p) { colors[p.key] = rgbOf(d.colors[p.key]); });
-        showPaletteFrom(colors);
-      }).catch(function () { $('paletteStatus').textContent = 'Kleuren niet kunnen laden.'; });
-    } else if (sim.g) {
-      var colors = {};
-      PALETTE.forEach(function (p) { colors[p.key] = G.getColor(sim.g, p.mask); });
-      showPaletteFrom(colors);
-    }
-  }
-
-  function sendPreview(on) {
-    fetch('/api/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ on: on }) }).catch(function () {});
-  }
-
-  function paletteOpen() {
-    palette.open = true;
-    $('palettePanel').classList.remove('hidden');
-    $('paletteToggle').textContent = 'Kleuren sluiten';
-    $('paletteStatus').textContent = '';
-    paletteLoad();
-    if (mode === 'live') {
-      sendPreview(true);
-      palette.heartbeat = setInterval(function () { sendPreview(true); }, 2000);
-    }
-    $('palettePanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }
-
-  function paletteClose() {
-    palette.open = false;
-    $('palettePanel').classList.add('hidden');
-    $('paletteToggle').textContent = 'Kleuren';
-    clearInterval(palette.heartbeat);
-    palette.heartbeat = null;
-    if (mode === 'live') sendPreview(false);
-  }
-
-  function paletteSave() {
-    if (mode === 'live') {
-      clearTimeout(palette.timer);
-      if (Object.keys(palette.pending).length) flushPalette();
-      fetch('/api/palette/save', { method: 'POST' }).then(function (r) {
-        $('paletteStatus').textContent = r.ok ? 'Opgeslagen in de ESP32.' : 'Opslaan mislukt.';
-      }).catch(function () { $('paletteStatus').textContent = 'Opslaan mislukt.'; });
-    } else if (sim.g) {
-      var stored = {};
-      PALETTE.forEach(function (p) { stored[p.key] = hexOf(G.getColor(sim.g, p.mask)); });
-      try { localStorage.setItem('mns.palette', JSON.stringify(stored)); } catch (e) { /* ignore */ }
-      $('paletteStatus').textContent = 'Opgeslagen in deze browser.';
-    }
-  }
-
-  function paletteReset() {
-    if (mode === 'live') {
-      fetch('/api/palette/reset', { method: 'POST' }).then(function () { paletteLoad(); }).catch(function () {});
-    } else if (sim.g) {
-      G.resetColors(sim.g);
-      try { localStorage.removeItem('mns.palette'); } catch (e) { /* ignore */ }
-      paletteLoad();
-    }
-    $('paletteStatus').textContent = 'Standaardkleuren.';
+  function setStatus(id, text, ok) {
+    var el = $(id);
+    el.textContent = text || '';
+    el.className = 'status' + (text ? (ok ? ' ok' : ' err') : '');
   }
 
   /* ---- Strip drawing -------------------------------------------------- */
@@ -364,7 +426,6 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, cssW, cssH);
-
     var r0 = cell * 0.36, r1 = cell * 0.62;
     for (var i = 0; i < n; i++) {
       var row = Math.floor(i / perRow), col = i % perRow;
@@ -379,7 +440,6 @@
       }
       ctx.beginPath(); ctx.arc(x, y, r0, 0, 6.2832); ctx.fill();
     }
-    /* The player's line, between the lives and the playfield. */
     ctx.strokeStyle = '#3a3f4e';
     ctx.setLineDash([3, 3]);
     ctx.beginPath(); ctx.moveTo(G.PLAY_START * cell, 0); ctx.lineTo(G.PLAY_START * cell, cell + 6); ctx.stroke();
@@ -392,8 +452,6 @@
     return out;
   }
 
-  /* ---- HUD ------------------------------------------------------------ */
-
   function updateHud(state, level, lives, score, best, player) {
     $('level').textContent = level;
     var hearts = '';
@@ -401,7 +459,7 @@
     $('lives').textContent = hearts;
     $('score').textContent = score;
     $('best').textContent = best;
-    $('playerName').textContent = player;
+    $('playerName').textContent = player || '–';
     $('hint').textContent = HINTS[state] || '';
   }
 
@@ -411,79 +469,570 @@
     el.className = 'badge' + (cls ? ' ' + cls : '');
   }
 
-  /* ---- Local high scores (browser version) ---------------------------- */
+  function renderScores(tbodies, list, player) {
+    tbodies.forEach(function (tbody) {
+      tbody.innerHTML = '';
+      if (!list.length) {
+        var tr0 = document.createElement('tr');
+        var td0 = document.createElement('td');
+        td0.colSpan = 4; td0.className = 'muted'; td0.textContent = 'Nog geen scores. Speel een spel!';
+        tr0.appendChild(td0); tbody.appendChild(tr0);
+        return;
+      }
+      list.forEach(function (e, i) {
+        var tr = document.createElement('tr');
+        if (player && e.name === player) tr.className = 'me';
+        [[i + 1, 'num'], [e.name, ''], [e.score, 'num'], [e.level, 'num']].forEach(function (c) {
+          var td = document.createElement('td');
+          td.textContent = c[0]; td.className = c[1];
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+    });
+  }
+  function deviceScoreBodies() { return Array.prototype.slice.call(document.querySelectorAll('.scoresBody')); }
 
-  function localScores() {
-    try { return JSON.parse(localStorage.getItem('mns.scores') || '[]'); } catch (e) { return []; }
+  /* ---- Live state from the device (WebSocket, polling as fallback) ---- */
+
+  var lastScoresState = null;
+  function handleState(s) {
+    last = s;
+    live.failures = 0;
+    setBadge('Live op de strip', 'live');
+    if (view !== 'practice') {
+      drawStrip(hexToLeds(s.leds, s.n), s.n);
+      updateHud(s.preview ? 'preview' : s.state, s.level, s.lives, s.score, s.best, s.player);
+      if (view === 'play' && me.player && !s.preview) playHint();
+    }
+    $('navPlay').classList.toggle('hidden', !s.play_enabled);
+    if (s.state !== lastScoresState) {
+      if (s.state === 'game_over' || lastScoresState === 'game_over' || lastScoresState === null) loadScores();
+      lastScoresState = s.state;
+    }
   }
-  function saveLocalScores(list) {
-    try { localStorage.setItem('mns.scores', JSON.stringify(list)); } catch (e) { /* private mode */ }
+
+  function loadScores() {
+    api('GET', '/api/highscores').then(function (r) {
+      if (r.ok) renderScores(deviceScoreBodies(), r.data.scores || [], last ? last.player : '');
+    });
   }
-  function localName() {
-    var n = '';
-    try { n = localStorage.getItem('mns.name') || ''; } catch (e) { /* ignore */ }
-    return n || 'Speler';
+
+  function livePoll() {
+    api('GET', '/api/state').then(function (r) {
+      if (r.ok) handleState(r.data);
+      else throw new Error();
+    }).catch(function () {
+      if (++live.failures >= 3) setBadge('Geen verbinding met de ESP32', 'lost');
+    });
   }
+
+  function liveConnect() {
+    if (live.ws || typeof WebSocket === 'undefined') { if (!live.ws) startPolling(); return; }
+    var ws;
+    try { ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws'); }
+    catch (e) { startPolling(); return; }
+    live.ws = ws;
+    ws.onmessage = function (ev) {
+      try { handleState(JSON.parse(ev.data)); } catch (e) { /* ignore */ }
+    };
+    ws.onopen = function () { stopPolling(); };
+    ws.onclose = ws.onerror = function () {
+      if (live.ws !== ws) return;
+      live.ws = null;
+      startPolling();
+      clearTimeout(live.retry);
+      live.retry = setTimeout(liveConnect, 5000);
+    };
+  }
+  function startPolling() {
+    if (live.poll) return;
+    livePoll();
+    live.poll = setInterval(livePoll, view === 'play' ? 100 : 200);
+  }
+  function stopPolling() { clearInterval(live.poll); live.poll = null; }
+
+  /* ---- Input ------------------------------------------------------------ */
+
+  function flashButton(color) {
+    var btn = document.querySelector('.btn[data-color="' + color + '"]');
+    if (!btn) return;
+    btn.classList.add('down');
+    setTimeout(function () { btn.classList.remove('down'); }, 120);
+  }
+
+  function pressColor(color) {
+    if (view === 'practice') {
+      if (sim.g && !palette.open) { flashButton(color); G.press(sim.g, color); }
+    } else if (view === 'play' && me.position === 0) {
+      flashButton(color);
+      api('POST', '/api/press', { color: COLOR_NAMES[color] }).then(function (r) {
+        if (r.status === 403) refreshQueue();
+      });
+    }
+  }
+
+  document.addEventListener('keydown', function (e) {
+    var c = KEYS[e.key];
+    if (!c || e.repeat) return;
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA')) return;
+    e.preventDefault();
+    pressColor(c);
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.btn'), function (btn) {
+    btn.addEventListener('pointerdown', function (e) {
+      e.preventDefault();
+      if (!btn.disabled) pressColor(parseInt(btn.getAttribute('data-color'), 10));
+    });
+    btn.addEventListener('keydown', function (e) { if (e.key === ' ' || e.key === 'Enter') e.preventDefault(); });
+  });
+  function setButtonsEnabled(on) {
+    Array.prototype.forEach.call(document.querySelectorAll('.btn'), function (b) { b.disabled = !on; });
+  }
+
+  /* ---- Play: login, queue ----------------------------------------------- */
+
+  function playHint() {
+    if (me.position === 0) return;                 /* the game's own hints */
+    if (me.position > 0) $('hint').textContent = 'Je bent nummer ' + me.position + ' in de rij. Wacht op je beurt.';
+    else $('hint').textContent = 'Geef je naam op om mee te spelen.';
+  }
+
+  function renderQueue(ul, d, adminMode) {
+    ul.innerHTML = '';
+    function item(name, pill, pillCls, isMe, index) {
+      var li = document.createElement('li');
+      if (isMe) li.className = 'me';
+      var n = document.createElement('span'); n.className = 'n'; n.textContent = name; li.appendChild(n);
+      if (pill) { var p = document.createElement('span'); p.className = 'pill ' + (pillCls || ''); p.textContent = pill; li.appendChild(p); }
+      if (adminMode) {
+        if (index > 0) {
+          var a = document.createElement('button'); a.className = 'secondary'; a.textContent = d.running ? 'Volgende' : 'Maak actief';
+          a.addEventListener('click', function () { adminQueue('activate', index); });
+          li.appendChild(a);
+        }
+        var r = document.createElement('button'); r.className = 'secondary danger'; r.textContent = 'Verwijder';
+        r.addEventListener('click', function () { adminQueue('remove', index); });
+        li.appendChild(r);
+      }
+      ul.appendChild(li);
+    }
+    if (d.current) {
+      var turn = d.games_per_turn > 0 ? ('speelt nu, spel ' + Math.min(d.current.games + (d.running ? 0 : 1), d.games_per_turn) + ' van ' + d.games_per_turn) : 'speelt nu';
+      item(d.current.name, turn, 'now', d.me === 0, 0);
+    } else {
+      var li = document.createElement('li');
+      li.innerHTML = '<span class="n muted">Niemand speelt via de telefoon; de knoppen aan de strip werken.</span>';
+      ul.appendChild(li);
+    }
+    (d.queue || []).forEach(function (q, i) {
+      var pill = (d.pending === i + 1) ? 'volgende' : (i + 1) + 'e';
+      item(q.name, pill, d.pending === i + 1 ? 'now' : '', d.me === i + 1, i + 1);
+    });
+  }
+
+  function applyQueue(d) {
+    me.position = typeof d.me === 'number' ? d.me : -1;
+    renderQueue($('queueList'), d, false);
+    var inQueue = me.position >= 0;
+    $('joinForm').classList.toggle('hidden', inQueue);
+    $('leaveBtn').classList.toggle('hidden', !inQueue);
+    if (inQueue) { $('suggestRow').classList.add('hidden'); }
+    setButtonsEnabled(me.position === 0);
+    playHint();
+  }
+
+  function refreshQueue() {
+    return api('GET', '/api/queue').then(function (r) {
+      if (r.status === 401) { me.player = false; showPlayState(); return; }
+      if (r.ok) applyQueue(r.data);
+    });
+  }
+
+  function showPlayState() {
+    var enabled = last ? last.play_enabled : true;
+    $('playOff').classList.toggle('hidden', enabled);
+    $('playLogin').classList.toggle('hidden', !enabled || me.player);
+    $('playPanel').classList.toggle('hidden', !enabled || !me.player);
+    $('buttons').classList.toggle('hidden', !enabled);
+    setButtonsEnabled(false);
+    clearInterval(queueTimer); queueTimer = null;
+    if (enabled && me.player) {
+      refreshQueue();
+      queueTimer = setInterval(refreshQueue, 2000);
+      if (!$('joinName').value) $('joinName').value = localName() === 'Speler' ? '' : localName();
+    } else if (enabled) {
+      $('hint').textContent = 'Geef het spelerswachtwoord in om mee te spelen.';
+    }
+  }
+
+  $('playLoginForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    api('POST', '/api/login', { role: 'player', password: $('playPassword').value }).then(function (r) {
+      if (r.ok) { me.player = true; setStatus('playLoginStatus', ''); showPlayState(); }
+      else setStatus('playLoginStatus', r.status === 401 ? 'Verkeerd wachtwoord.' : (r.data.error || 'Mislukt.'), false);
+    });
+  });
+
+  function join(name, accept) {
+    api('POST', '/api/queue', { name: name, accept_suffix: !!accept }).then(function (r) {
+      if (r.ok) {
+        try { localStorage.setItem('mns.name', name); } catch (err) { /* ignore */ }
+        setStatus('joinStatus', '', true);
+        $('suggestRow').classList.add('hidden');
+        applyQueue(r.data);
+      } else if (r.status === 409 && r.data.suggestion) {
+        $('suggestText').textContent = 'De naam "' + name + '" is al in gebruik. Kies een andere naam, of:';
+        $('suggestBtn').textContent = 'Ga verder als ' + r.data.suggestion;
+        $('suggestBtn').onclick = function () { join(name, true); };
+        $('suggestRow').classList.remove('hidden');
+      } else {
+        setStatus('joinStatus', r.data.error || 'Mislukt.', false);
+      }
+    });
+  }
+  $('joinForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var name = $('joinName').value.trim();
+    if (!name) { setStatus('joinStatus', 'Geef een naam op.', false); return; }
+    join(name, false);
+  });
+  $('leaveBtn').addEventListener('click', function () {
+    api('DELETE', '/api/queue').then(function (r) { if (r.ok) applyQueue(r.data); });
+  });
+
+  /* ---- Settings: setup, login, form ------------------------------------- */
+
+  var SETTINGS_FIELDS = ['ap_ssid', 'sta_ssid', 'hostname', 'led_count', 'led_gpio', 'brightness', 'max_current_ma',
+    'rgb_order', 'wrong_hit_keeps_dot', 'level1_dots', 'dots_per_level', 'speed_pct', 'games_per_turn',
+    'btn_red_gpio', 'btn_yellow_gpio', 'btn_blue_gpio', 'btn_active_high',
+    'lights', 'light_red_gpio', 'light_yellow_gpio', 'light_blue_gpio', 'lights_active_high'];
+  var adminTimer = null;
+
+  function showSettingsState(auth) {
+    $('adminSetup').classList.toggle('hidden', auth.admin_set);
+    $('adminLogin').classList.toggle('hidden', !auth.admin_set || auth.admin);
+    $('adminPanel').classList.toggle('hidden', !auth.admin);
+    clearInterval(adminTimer); adminTimer = null;
+    if (auth.admin) {
+      loadSettings();
+      refreshAdminQueue();
+      adminTimer = setInterval(refreshAdminQueue, 3000);
+      loadScores();
+    }
+  }
+
+  function fillSettings(d) {
+    var f = $('settingsForm');
+    SETTINGS_FIELDS.forEach(function (k) {
+      var el = f.elements[k];
+      if (!el) return;
+      if (el.type === 'checkbox') el.checked = !!d[k];
+      else el.value = d[k];
+    });
+    f.elements.ap_password.value = '';
+    f.elements.ap_password.placeholder = d.ap_password_set ? '(ingesteld; typ om te wijzigen)' : '(open netwerk)';
+    f.elements.sta_password.value = '';
+    f.elements.sta_password.placeholder = d.sta_password_set ? '(ingesteld; typ om te wijzigen)' : '';
+    $('restartBanner').classList.toggle('hidden', !d.restart_needed);
+    var st = d.status || {};
+    $('statusLine').textContent = 'Versie ' + st.version + ' · ' + st.network + (st.ip ? ' · http://' + st.ip : '') +
+      ' · ongeveer ' + st.ma + ' mA · ' + Math.floor((st.uptime_s || 0) / 60) + ' min aan';
+    $('playerPwInfo').textContent = d.player_password_set ?
+      'Spelen via de telefoon staat aan. Spelers geven dit wachtwoord in op de pagina Spelen.' :
+      'Staat uit: er is geen spelerswachtwoord, dus alleen de knoppen aan de strip werken.';
+  }
+
+  function loadSettings() {
+    api('GET', '/api/settings').then(function (r) {
+      if (r.status === 401) { me.admin = false; checkAuth(); return; }
+      if (r.ok) fillSettings(r.data);
+    });
+  }
+
+  $('settingsForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var f = $('settingsForm');
+    var data = {};
+    SETTINGS_FIELDS.forEach(function (k) {
+      var el = f.elements[k];
+      if (!el) return;
+      if (el.type === 'checkbox') data[k] = el.checked;
+      else if (el.type === 'number' || el.tagName === 'SELECT') data[k] = parseInt(el.value, 10);
+      else data[k] = el.value;
+    });
+    if (f.elements.ap_password.value) data.ap_password = f.elements.ap_password.value;
+    if (f.elements.sta_password.value) data.sta_password = f.elements.sta_password.value;
+    api('POST', '/api/settings', data).then(function (r) {
+      if (r.ok) { fillSettings(r.data); setStatus('settingsStatus', 'Opgeslagen.', true); }
+      else setStatus('settingsStatus', r.data.error || 'Opslaan mislukt.', false);
+    });
+  });
+  $('settingsResetBtn').addEventListener('click', function () {
+    if (!confirm('Alle instellingen en wachtwoorden terug naar de standaardwaarden?')) return;
+    api('POST', '/api/settings/reset').then(function (r) {
+      if (r.ok) { fillSettings(r.data); setStatus('settingsStatus', 'Standaardwaarden hersteld; de wachtwoorden zijn weg.', true); setTimeout(checkAuth, 500); }
+    });
+  });
+  function restart() {
+    if (!confirm('De ESP32 nu herstarten?')) return;
+    api('POST', '/api/restart');
+    setBadge('Herstart…', 'lost');
+  }
+  $('restartBtn').addEventListener('click', restart);
+  $('restartBtn2').addEventListener('click', restart);
+  $('logoutBtn').addEventListener('click', function () {
+    api('POST', '/api/logout').then(function () { me.admin = false; checkAuth(); });
+  });
+  $('abortBtn').addEventListener('click', function () { api('POST', '/api/game/abort').then(refreshAdminQueue); });
+
+  function refreshAdminQueue() {
+    api('GET', '/api/queue').then(function (r) {
+      if (r.ok) {
+        renderQueue($('adminQueue'), r.data, true);
+        $('adminQueueNote').textContent = r.data.running && r.data.queue.length ?
+          '"Volgende" geeft iemand de beurt vanaf het volgende spel.' : '';
+      }
+    });
+  }
+  function adminQueue(action, index) {
+    api('POST', '/api/queue/admin', { action: action, index: index }).then(refreshAdminQueue);
+  }
+
+  $('adminSetupForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var p1 = $('setupPw1').value, p2 = $('setupPw2').value;
+    if (p1.length < 4) { setStatus('setupStatus', 'Minstens 4 tekens.', false); return; }
+    if (p1 !== p2) { setStatus('setupStatus', 'De twee wachtwoorden verschillen.', false); return; }
+    api('POST', '/api/password', { role: 'admin', password: p1 }).then(function (r) {
+      if (r.ok) { me.admin = true; showSettingsState(r.data); }
+      else setStatus('setupStatus', r.data.error || 'Mislukt.', false);
+    });
+  });
+  $('adminLoginForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    api('POST', '/api/login', { role: 'admin', password: $('adminPassword').value }).then(function (r) {
+      if (r.ok) { me.admin = true; setStatus('adminLoginStatus', ''); showSettingsState(r.data); }
+      else setStatus('adminLoginStatus', r.status === 401 ? 'Verkeerd wachtwoord.' : (r.data.error || 'Mislukt.'), false);
+    });
+  });
+  $('adminPwForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var p1 = $('adminPw1').value, p2 = $('adminPw2').value;
+    if (p1.length < 4) { setStatus('pwStatus', 'Minstens 4 tekens.', false); return; }
+    if (p1 !== p2) { setStatus('pwStatus', 'De twee wachtwoorden verschillen.', false); return; }
+    api('POST', '/api/password', { role: 'admin', password: p1 }).then(function (r) {
+      if (r.ok) { $('adminPw1').value = ''; $('adminPw2').value = ''; setStatus('pwStatus', 'Instellingenwachtwoord gewijzigd.', true); }
+      else setStatus('pwStatus', r.data.error || 'Mislukt.', false);
+    });
+  });
+  function setPlayerPassword(pw) {
+    api('POST', '/api/password', { role: 'player', password: pw }).then(function (r) {
+      if (r.ok) { $('playerPw').value = ''; setStatus('pwStatus', pw ? 'Spelerswachtwoord ingesteld; spelen via de telefoon staat aan.' : 'Spelen via de telefoon staat uit.', true); loadSettings(); }
+      else setStatus('pwStatus', r.data.error || 'Mislukt.', false);
+    });
+  }
+  $('playerPwForm').addEventListener('submit', function (e) { e.preventDefault(); setPlayerPassword($('playerPw').value); });
+  $('playerPwClear').addEventListener('click', function () { setPlayerPassword(''); });
+
+  $('clearScores').addEventListener('click', function () {
+    if (!confirm('Alle highscores wissen?')) return;
+    api('DELETE', '/api/highscores').then(function (r) { if (r.ok) renderScores(deviceScoreBodies(), r.data.scores || [], ''); });
+  });
+
+  $('otaBtn').addEventListener('click', function () {
+    var file = $('otaFile').files[0];
+    if (!file) { setStatus('otaStatus', 'Kies eerst een firmware.bin.', false); return; }
+    if (!confirm('Firmware "' + file.name + '" (' + Math.round(file.size / 1024) + ' kB) uploaden en herstarten?')) return;
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/ota');
+    xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+    $('otaProgress').classList.remove('hidden');
+    xhr.upload.onprogress = function (ev) { if (ev.lengthComputable) $('otaProgress').value = Math.round(ev.loaded * 100 / ev.total); };
+    xhr.onload = function () {
+      if (xhr.status === 200) { setStatus('otaStatus', 'Geschreven. De ESP32 herstart; herlaad de pagina over een halve minuut.', true); setBadge('Herstart…', 'lost'); }
+      else { var d = {}; try { d = JSON.parse(xhr.responseText); } catch (e) { /* ignore */ } setStatus('otaStatus', d.error || ('Mislukt (' + xhr.status + ').'), false); }
+    };
+    xhr.onerror = function () { setStatus('otaStatus', 'Upload mislukt.', false); };
+    setStatus('otaStatus', 'Bezig…', true);
+    xhr.send(file);
+  });
+
+  /* ---- Colour palette --------------------------------------------------- */
+
+  var PALETTE = [
+    { key: 'red',    mask: G.RED,    label: 'Rood' },
+    { key: 'orange', mask: G.ORANGE, label: 'Oranje', note: 'rood + geel' },
+    { key: 'yellow', mask: G.YELLOW, label: 'Geel' },
+    { key: 'green',  mask: G.GREEN,  label: 'Groen',  note: 'geel + blauw' },
+    { key: 'blue',   mask: G.BLUE,   label: 'Blauw' },
+    { key: 'purple', mask: G.PURPLE, label: 'Paars',  note: 'rood + blauw' },
+    { key: 'white',  mask: G.WHITE,  label: 'Wit',    note: 'rood + geel + blauw' }
+  ];
+  var palette = { open: false, rows: {}, heartbeat: null, pending: {}, timer: null, local: false };
+
+  function hexOf(c) { return [c.r, c.g, c.b].map(function (v) { return ('0' + v.toString(16)).slice(-2); }).join(''); }
+  function rgbOf(hex) {
+    hex = String(hex).replace('#', '');
+    if (!/^[0-9a-fA-F]{6}$/.test(hex)) return null;
+    return { r: parseInt(hex.substr(0, 2), 16), g: parseInt(hex.substr(2, 2), 16), b: parseInt(hex.substr(4, 2), 16) };
+  }
+  function clamp255(v) { v = parseInt(v, 10); return isNaN(v) ? 0 : Math.max(0, Math.min(255, v)); }
+  function localPalette() { try { return JSON.parse(localStorage.getItem('mns.palette') || '{}'); } catch (e) { return {}; } }
+  function applyLocalPalette(g) {
+    var stored = localPalette();
+    PALETTE.forEach(function (p) { var c = stored[p.key] && rgbOf(stored[p.key]); if (c) G.setColor(g, p.mask, c); });
+  }
+
+  function buildPaletteRows() {
+    var host = $('paletteRows');
+    PALETTE.forEach(function (p) {
+      var row = document.createElement('div');
+      row.className = 'prow';
+      var lbl = document.createElement('div'); lbl.className = 'lbl'; lbl.textContent = p.label;
+      if (p.note) { var sm = document.createElement('small'); sm.textContent = p.note; lbl.appendChild(sm); }
+      row.appendChild(lbl);
+      var picker = document.createElement('input'); picker.type = 'color'; picker.title = p.label; row.appendChild(picker);
+      var nums = ['r', 'g', 'b'].map(function (ch) {
+        var inp = document.createElement('input');
+        inp.type = 'number'; inp.min = 0; inp.max = 255; inp.title = p.label + ' ' + ch.toUpperCase();
+        inp.setAttribute('aria-label', p.label + ' ' + ch.toUpperCase());
+        row.appendChild(inp);
+        return inp;
+      });
+      palette.rows[p.key] = { picker: picker, nums: nums };
+      picker.addEventListener('input', function () { var c = rgbOf(picker.value); if (c) paletteChange(p, c); });
+      nums.forEach(function (inp) {
+        inp.addEventListener('input', function () {
+          paletteChange(p, { r: clamp255(nums[0].value), g: clamp255(nums[1].value), b: clamp255(nums[2].value) });
+        });
+      });
+      host.appendChild(row);
+    });
+  }
+  function showPaletteColor(key, c) {
+    var r = palette.rows[key];
+    r.picker.value = '#' + hexOf(c);
+    if (document.activeElement !== r.nums[0]) r.nums[0].value = c.r;
+    if (document.activeElement !== r.nums[1]) r.nums[1].value = c.g;
+    if (document.activeElement !== r.nums[2]) r.nums[2].value = c.b;
+  }
+  function paletteChange(p, c) {
+    showPaletteColor(p.key, c);
+    if (palette.local) {
+      if (sim.g) G.setColor(sim.g, p.mask, c);
+    } else {
+      palette.pending[p.key] = hexOf(c);
+      clearTimeout(palette.timer);
+      palette.timer = setTimeout(flushPalette, 120);
+    }
+    $('paletteStatus').textContent = '';
+  }
+  function flushPalette() {
+    var data = palette.pending;
+    palette.pending = {};
+    api('POST', '/api/palette', data);
+  }
+  function paletteLoad() {
+    var colors = {};
+    if (palette.local) {
+      if (!sim.g) return;
+      PALETTE.forEach(function (p) { colors[p.key] = G.getColor(sim.g, p.mask); });
+      PALETTE.forEach(function (p) { showPaletteColor(p.key, colors[p.key]); });
+    } else {
+      api('GET', '/api/palette').then(function (r) {
+        if (!r.ok) { $('paletteStatus').textContent = 'Kleuren niet kunnen laden.'; return; }
+        PALETTE.forEach(function (p) { var c = rgbOf(r.data.colors[p.key]); if (c) showPaletteColor(p.key, c); });
+      });
+    }
+  }
+  function sendPreview(on) { api('POST', '/api/preview', { on: on }); }
+  function paletteOpen(local) {
+    palette.local = local;
+    palette.open = true;
+    var host = local ? document.querySelector('[data-view="practice"]') : $('palettePanelHost');
+    host.appendChild($('palettePanel'));
+    $('palettePanelHost').classList.toggle('hidden', local);
+    $('palettePanel').classList.remove('hidden');
+    $('paletteStatus').textContent = '';
+    paletteLoad();
+    if (!local) { sendPreview(true); palette.heartbeat = setInterval(function () { sendPreview(true); }, 2000); }
+    $('palettePanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  function paletteClose() {
+    if (!palette.open) return;
+    palette.open = false;
+    $('palettePanel').classList.add('hidden');
+    $('palettePanelHost').classList.add('hidden');
+    clearInterval(palette.heartbeat); palette.heartbeat = null;
+    if (!palette.local) sendPreview(false);
+  }
+  $('paletteSave').addEventListener('click', function () {
+    if (palette.local) {
+      var stored = {};
+      PALETTE.forEach(function (p) { stored[p.key] = hexOf(G.getColor(sim.g, p.mask)); });
+      try { localStorage.setItem('mns.palette', JSON.stringify(stored)); } catch (e) { /* ignore */ }
+      $('paletteStatus').textContent = 'Opgeslagen in deze browser.';
+    } else {
+      clearTimeout(palette.timer);
+      if (Object.keys(palette.pending).length) flushPalette();
+      api('POST', '/api/palette/save').then(function (r) { $('paletteStatus').textContent = r.ok ? 'Opgeslagen in de ESP32.' : 'Opslaan mislukt.'; });
+    }
+  });
+  $('paletteReset').addEventListener('click', function () {
+    if (palette.local) {
+      G.resetColors(sim.g);
+      try { localStorage.removeItem('mns.palette'); } catch (e) { /* ignore */ }
+      paletteLoad();
+    } else {
+      api('POST', '/api/palette/reset').then(paletteLoad);
+    }
+    $('paletteStatus').textContent = 'Standaardkleuren.';
+  });
+  $('paletteClose').addEventListener('click', paletteClose);
+  $('paletteTogglePractice').addEventListener('click', function () { if (palette.open) paletteClose(); else paletteOpen(true); });
+  $('paletteToggleAdmin').addEventListener('click', function () { if (palette.open) paletteClose(); else paletteOpen(false); });
+  window.addEventListener('pagehide', function () { if (palette.open && !palette.local) sendPreview(false); });
+
+  /* ---- Practice (the game in the browser) ------------------------------- */
+
+  function localScores() { try { return JSON.parse(localStorage.getItem('mns.scores') || '[]'); } catch (e) { return []; } }
+  function saveLocalScores(list) { try { localStorage.setItem('mns.scores', JSON.stringify(list)); } catch (e) { /* ignore */ } }
+  function localName() { var n = ''; try { n = localStorage.getItem('mns.name') || ''; } catch (e) { /* ignore */ } return n || 'Speler'; }
   function addLocalScore(name, score, level) {
     if (!score) return;
     var list = localScores();
     list.push({ name: name, score: score, level: level });
     list.sort(function (a, b) { return b.score - a.score; });
     saveLocalScores(list.slice(0, 10));
-    renderScores(localScores(), name);
+    renderScores([$('localScores')], localScores(), name);
   }
-  function localBest() {
-    var list = localScores();
-    return list.length ? list[0].score : 0;
-  }
-
-  function renderScores(list, player) {
-    var tbody = $('scores');
-    tbody.innerHTML = '';
-    if (!list.length) {
-      var tr = document.createElement('tr');
-      var td = document.createElement('td');
-      td.colSpan = 4; td.className = 'muted'; td.textContent = 'Nog geen scores. Speel een spel!';
-      tr.appendChild(td); tbody.appendChild(tr);
-      return;
-    }
-    list.forEach(function (e, i) {
-      var tr = document.createElement('tr');
-      if (e.name === player) tr.className = 'me';
-      [[i + 1, 'num'], [e.name, ''], [e.score, 'num'], [e.level, 'num']].forEach(function (c) {
-        var td = document.createElement('td');
-        td.textContent = c[0]; td.className = c[1];
-        tr.appendChild(td);
-      });
-      tbody.appendChild(tr);
-    });
-  }
-
-  /* ---- Browser version -------------------------------------------------- */
+  function localBest() { var list = localScores(); return list.length ? list[0].score : 0; }
 
   function simStart() {
-    var n = parseInt($('nLeds').value, 10) || 300;
-    n = Math.max(G.MIN_LEDS, Math.min(G.MAX_LEDS, n));
+    var n = Math.max(G.MIN_LEDS, Math.min(G.MAX_LEDS, parseInt($('nLeds').value, 10) || 300));
     $('nLeds').value = n;
-    sim.g = G.init(n, (Math.random() * 4294967296) >>> 0, { wrong_hit_keeps_dot: $('keepsDot').checked });
+    var opt = G.defaultOptions();
+    opt.wrong_hit_keeps_dot = $('keepsDot').checked;
+    opt.speed_pct = parseInt($('simSpeed').value, 10) || 100;
+    opt.level1_dots = parseInt($('simDots').value, 10) || 8;
+    opt.dots_per_level = parseInt($('simDotsPer').value, 10);
+    if (isNaN(opt.dots_per_level)) opt.dots_per_level = 2;
+    sim.g = G.init(n, (Math.random() * 4294967296) >>> 0, opt);
+    $('simSpeed').value = sim.g.opt.speed_pct; $('simDots').value = sim.g.opt.level1_dots; $('simDotsPer').value = sim.g.opt.dots_per_level;
     applyLocalPalette(sim.g);
-    if (palette.open) paletteLoad();
+    if (palette.open && palette.local) paletteLoad();
     sim.leds = new Uint8Array(n * 3);
     sim.last = performance.now();
     sim.acc = 0;
     cancelAnimationFrame(sim.raf);
     sim.raf = requestAnimationFrame(simFrame);
   }
-
-  function simStop() {
-    cancelAnimationFrame(sim.raf);
-    sim.raf = 0;
-  }
-
+  function simStop() { cancelAnimationFrame(sim.raf); sim.raf = 0; }
   function simFrame(now) {
     var elapsed = now - sim.last;
     sim.last = now;
-    if (palette.open) {                      /* colour chart; the game waits */
+    if (palette.open && palette.local) {
       sim.acc = 0;
       G.renderPalette(sim.g, sim.leds);
       drawStrip(sim.leds, sim.g.n_leds);
@@ -491,7 +1040,7 @@
       sim.raf = requestAnimationFrame(simFrame);
       return;
     }
-    if (elapsed > 250) elapsed = 250;        /* tab was hidden: do not fast-forward */
+    if (elapsed > 250) elapsed = 250;
     sim.acc += elapsed;
     var steps = 0;
     while (sim.acc >= 16 && steps < 16) {
@@ -506,171 +1055,75 @@
     updateHud(G.stateName(sim.g.state), sim.g.level, sim.g.lives, sim.g.score, localBest(), localName());
     sim.raf = requestAnimationFrame(simFrame);
   }
-
-  /* ---- Live view of the real strip -------------------------------------- */
-
-  function livePoll() {
-    fetch('/api/state', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (s) {
-      live.failures = 0;
-      setBadge('Live op de strip', 'live');
-      drawStrip(hexToLeds(s.leds, s.n), s.n);
-      updateHud(s.preview ? 'preview' : s.state, s.level, s.lives, s.score, s.best, s.player);
-      $('liveInfo').textContent = 'Je ziet de strip die aan de ESP32 hangt (' + s.n + ' LEDs, ongeveer ' + s.ma +
-        ' mA). De knoppen en pijltjestoetsen hier drukken op de echte knoppen.';
-      if (s.state !== live.state) {
-        if (s.state === 'game_over' || live.state === 'game_over') loadLiveScores();
-        live.state = s.state;
-      }
-    }).catch(function () {
-      if (++live.failures >= 3) setBadge('Geen verbinding met de ESP32', 'lost');
-    });
-  }
-
-  function loadLiveScores() {
-    fetch('/api/highscores', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
-      renderScores(d.scores, d.player);
-      if (!$('name').value) $('name').value = d.player === 'Speler' ? '' : d.player;
-    }).catch(function () { /* shown by the badge */ });
-  }
-
-  function liveStart() {
-    live.state = null;
-    livePoll();
-    live.timer = setInterval(livePoll, 100);
-    loadLiveScores();
-  }
-
-  function liveStop() {
-    clearInterval(live.timer);
-    live.timer = null;
-  }
-
-  /* ---- Input ------------------------------------------------------------ */
-
-  function flashButton(color) {
-    var btn = document.querySelector('.btn[data-color="' + color + '"]');
-    if (!btn) return;
-    btn.classList.add('down');
-    setTimeout(function () { btn.classList.remove('down'); }, 120);
-  }
-
-  function pressColor(color) {
-    flashButton(color);
-    if (mode === 'live') {
-      fetch('/api/press', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ color: COLOR_NAMES[color] }) }).catch(function () {});
-    } else if (sim.g) {
-      G.press(sim.g, color);
-    }
-  }
-
-  document.addEventListener('keydown', function (e) {
-    var c = KEYS[e.key];
-    if (!c || e.repeat) return;
-    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON')) e.target.blur();
-    e.preventDefault();
-    pressColor(c);
-  });
-
-  Array.prototype.forEach.call(document.querySelectorAll('.btn'), function (btn) {
-    btn.addEventListener('pointerdown', function (e) {
-      e.preventDefault();
-      pressColor(parseInt(btn.getAttribute('data-color'), 10));
-    });
-    btn.addEventListener('keydown', function (e) { if (e.key === ' ' || e.key === 'Enter') e.preventDefault(); });
-  });
-
-  /* ---- Forms ------------------------------------------------------------ */
-
-  $('nameForm').addEventListener('submit', function (e) {
-    e.preventDefault();
-    var name = $('name').value.trim().slice(0, 16);
-    if (mode === 'live') {
-      fetch('/api/player', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                             body: JSON.stringify({ name: name }) })
-        .then(function (r) { return r.json(); })
-        .then(function (d) { renderScores(d.scores, d.player); $('name').value = d.player; })
-        .catch(function () {});
-    } else {
-      try { localStorage.setItem('mns.name', name); } catch (err) { /* ignore */ }
-      renderScores(localScores(), localName());
-    }
-    $('name').blur();
-  });
-
-  $('clearScores').addEventListener('click', function () {
-    if (!confirm('Alle highscores wissen?')) return;
-    if (mode === 'live') {
-      fetch('/api/highscores', { method: 'DELETE' }).then(function (r) { return r.json(); })
-        .then(function (d) { renderScores(d.scores, d.player); }).catch(function () {});
-    } else {
-      saveLocalScores([]);
-      renderScores([], localName());
-    }
-  });
-
   $('applySettings').addEventListener('click', function () { simStart(); $('applySettings').blur(); });
+  $('localNameForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    try { localStorage.setItem('mns.name', $('localName').value.trim().slice(0, 16)); } catch (err) { /* ignore */ }
+    renderScores([$('localScores')], localScores(), localName());
+    $('localName').blur();
+  });
+  $('clearLocalScores').addEventListener('click', function () {
+    if (!confirm('Highscores in deze browser wissen?')) return;
+    saveLocalScores([]);
+    renderScores([$('localScores')], [], '');
+  });
+  window.addEventListener('resize', function () { if (view === 'practice' && sim.g) drawStrip(sim.leds, sim.g.n_leds); });
+
+  /* ---- Views ------------------------------------------------------------ */
+
+  function checkAuth() {
+    return api('GET', '/api/auth').then(function (r) {
+      if (!r.ok) return;
+      me.admin = r.data.admin;
+      me.player = r.data.player;
+      if (view === 'settings') showSettingsState(r.data);
+      if (view === 'play') showPlayState();
+    });
+  }
+
+  function setView(v) {
+    view = v;
+    paletteClose();
+    simStop();
+    clearInterval(queueTimer); queueTimer = null;
+    clearInterval(adminTimer); adminTimer = null;
+    Array.prototype.forEach.call(document.querySelectorAll('.view'), function (el) {
+      el.classList.toggle('hidden', el.getAttribute('data-view') !== v);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('nav a'), function (a) {
+      a.classList.toggle('active', a.getAttribute('data-view') === v);
+    });
+    $('buttons').classList.toggle('hidden', v === 'watch' || v === 'settings');
+    setButtonsEnabled(v === 'practice');
+    if (v === 'practice') {
+      setBadge(served ? 'Oefenen in de browser' : 'Browserversie (geen ESP32)');
+      $('localName').value = localName() === 'Speler' ? '' : localName();
+      renderScores([$('localScores')], localScores(), localName());
+      simStart();
+    } else {
+      if (last) handleState(last);
+      checkAuth();
+    }
+  }
+
+  function viewFromPath() {
+    var p = location.pathname;
+    if (p.indexOf('/play') === 0) return 'play';
+    if (p.indexOf('/settings') === 0) return 'settings';
+    if (p.indexOf('/practice') === 0) return 'practice';
+    return 'watch';
+  }
 
   buildPaletteRows();
-  $('paletteToggle').addEventListener('click', function () {
-    if (palette.open) paletteClose(); else paletteOpen();
-    $('paletteToggle').blur();
-  });
-  $('paletteClose').addEventListener('click', paletteClose);
-  $('paletteSave').addEventListener('click', paletteSave);
-  $('paletteReset').addEventListener('click', paletteReset);
-  window.addEventListener('pagehide', function () { if (palette.open && mode === 'live') sendPreview(false); });
-
-  $('toggleMode').addEventListener('click', function () {
-    setMode(mode === 'live' ? 'sim' : 'live');
-    $('toggleMode').blur();
-  });
-
-  window.addEventListener('resize', function () {
-    if (mode === 'sim' && sim.g) drawStrip(sim.leds, sim.g.n_leds);
-  });
-
-  /* ---- Mode ------------------------------------------------------------- */
-
-  function setMode(m) {
-    if (palette.open) paletteClose();
-    mode = m;
-    if (m === 'live') {
-      simStop();
-      $('simPanel').classList.add('hidden');
-      $('livePanel').classList.remove('hidden');
-      $('playerHelp').textContent = 'De volgende spellen op de strip komen onder deze naam in de lijst.';
-      $('toggleMode').textContent = 'Speel hier in de browser';
-      liveStart();
-    } else {
-      liveStop();
-      $('simPanel').classList.remove('hidden');
-      $('livePanel').classList.add('hidden');
-      $('playerHelp').textContent = 'Scores van de browserversie blijven in deze browser bewaard.';
-      $('toggleMode').textContent = 'Toon de echte strip';
-      setBadge(served ? 'Browserversie' : 'Browserversie (geen ESP32)');
-      $('name').value = localName() === 'Speler' ? '' : localName();
-      renderScores(localScores(), localName());
-      simStart();
-    }
-    $('toggleMode').classList.toggle('hidden', !served);
-  }
-
-  function detectMode() {
-    if (location.protocol === 'file:') return Promise.resolve('sim');
-    var ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    if (ctl) setTimeout(function () { ctl.abort(); }, 1500);
-    return fetch('/api/state', { cache: 'no-store', signal: ctl ? ctl.signal : undefined })
-      .then(function (r) { return r.json(); })
-      .then(function (s) { return (s && typeof s.leds === 'string') ? 'live' : 'sim'; })
-      .catch(function () { return 'sim'; });
-  }
-
   setBadge('Verbinden…');
-  detectMode().then(function (m) {
-    served = (m === 'live');
-    setMode(m);
-  });
+  if (location.protocol === 'file:') {
+    $('nav').classList.add('hidden');
+    setView('practice');
+  } else {
+    served = true;
+    liveConnect();
+    setView(viewFromPath());
+  }
 })();
 </script>
 </body>

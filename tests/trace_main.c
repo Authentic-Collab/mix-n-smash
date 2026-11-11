@@ -26,7 +26,14 @@ int main(void)
     static game_rgb_t leds[GAME_MAX_LEDS];
     for (size_t c = 0; c < sizeof(CONFIGS) / sizeof(CONFIGS[0]); c++) {
         const trace_config_t *cfg = &CONFIGS[c];
-        game_options_t opt = { .wrong_hit_keeps_dot = cfg->keeps_dot };
+        game_options_t opt;
+        game_default_options(&opt);
+        opt.wrong_hit_keeps_dot = cfg->keeps_dot;
+        if (c == 3) {
+            opt.level1_dots = 3;
+            opt.dots_per_level = 1;
+            opt.speed_pct = 60;
+        }
         game_init(&g, cfg->n_leds, cfg->seed, &opt);
         if (c == 2) {
             game_rgb_t purple = {120, 0, 200};   /* a custom colour must show up in the frames */
@@ -34,6 +41,7 @@ int main(void)
         }
         int32_t presses = 0;
         for (int32_t tick = 0; tick < cfg->ticks; tick++) {
+            if (c == 1 && tick == 1234) game_abort(&g);
             autoplay_step(&g, tick, &presses);
             game_tick(&g, 16);
             uint32_t ev = game_take_events(&g);

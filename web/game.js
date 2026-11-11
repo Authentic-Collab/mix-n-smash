@@ -26,8 +26,9 @@
 
   var EV = {
     START: 1 << 0, SHOT: 1 << 1, DOT_CLEARED: 1 << 2, DOT_REDUCED: 1 << 3, WRONG_HIT: 1 << 4,
-    DOT_ESCAPED: 1 << 5, LIFE_LOST: 1 << 6, LEVEL_CLEAR: 1 << 7, GAME_OVER: 1 << 8
+    DOT_ESCAPED: 1 << 5, LIFE_LOST: 1 << 6, LEVEL_CLEAR: 1 << 7, GAME_OVER: 1 << 8, ABORTED: 1 << 9
   };
+  var DEFAULT_LEVEL1_DOTS = 8, DEFAULT_DOTS_PER_LEVEL = 2, MIN_SPEED_PCT = 25, MAX_SPEED_PCT = 300;
 
   var COUNTDOWN_FIRST_MS = 3000, COUNTDOWN_NEXT_MS = 2000;
   var LEVEL_CLEAR_MS = 2600, LEVEL_CLEAR_RAINBOW_MS = 1400;
@@ -125,11 +126,42 @@
     for (var m = 0; m < 8; m++) g.palette[m] = colorForMask(m);
   }
 
-  function levelParams(level) {
+  /* Level parameters; with a game its options apply (g may be null). */
+  function levelParams(g, level) {
     var idx = level - 1;
     if (idx < 0) idx = 0;
     if (idx >= LEVEL_COUNT) idx = LEVEL_COUNT - 1;
-    return LEVELS[idx];
+    var row = LEVELS[idx];
+    var out = { dots: row.dots, cross_ms: row.cross_ms, mixed_pct: row.mixed_pct, triple_pct: row.triple_pct,
+                max_concurrent: row.max_concurrent, gap_min_ms: row.gap_min_ms, gap_max_ms: row.gap_max_ms,
+                speed_var_pct: row.speed_var_pct };
+    if (!g) return out;
+    if (level < 1) level = 1;
+    out.dots = g.opt.level1_dots + (level - 1) * g.opt.dots_per_level;
+    out.cross_ms = idiv(out.cross_ms * 100, g.opt.speed_pct);
+    return out;
+  }
+
+  function defaultOptions() {
+    return { wrong_hit_keeps_dot: false, level1_dots: DEFAULT_LEVEL1_DOTS,
+             dots_per_level: DEFAULT_DOTS_PER_LEVEL, speed_pct: 100 };
+  }
+
+  function setOptions(g, opt) {
+    var d = defaultOptions();
+    var o = {
+      wrong_hit_keeps_dot: !!opt.wrong_hit_keeps_dot,
+      level1_dots: opt.level1_dots === undefined ? d.level1_dots : (opt.level1_dots | 0),
+      dots_per_level: opt.dots_per_level === undefined ? d.dots_per_level : (opt.dots_per_level | 0),
+      speed_pct: opt.speed_pct === undefined ? d.speed_pct : (opt.speed_pct | 0)
+    };
+    if (o.level1_dots < 1) o.level1_dots = 1;
+    if (o.level1_dots > 200) o.level1_dots = 200;
+    if (o.dots_per_level < 0) o.dots_per_level = 0;
+    if (o.dots_per_level > 50) o.dots_per_level = 50;
+    if (o.speed_pct < MIN_SPEED_PCT) o.speed_pct = MIN_SPEED_PCT;
+    if (o.speed_pct > MAX_SPEED_PCT) o.speed_pct = MAX_SPEED_PCT;
+    g.opt = o;
   }
 
   function stateName(state) { return STATE_NAMES[state] || '?'; }
@@ -171,7 +203,7 @@
   }
 
   function startLevel(g) {
-    var p = levelParams(g.level);
+    var p = levelParams(g, g.level);
     clearDots(g);
     clearShots(g);
     g.dots_spawned = 0;
@@ -223,8 +255,8 @@
   /* ---- Playing ---------------------------------------------------------- */
 
   function spawnDot(g) {
-    var p = levelParams(g.level);
-    var next = levelParams(g.level + 1);
+    var p = levelParams(g, g.level);
+    var next = levelParams(g, g.level + 1);
 
     var crossMs = lerpI(p.cross_ms, next.cross_ms, g.dots_spawned, g.dots_total);
     var speed = idiv(playLen(g) * ONE * 1000, crossMs);
@@ -287,7 +319,7 @@
   }
 
   function tickPlaying(g, dt) {
-    var p = levelParams(g.level);
+    var p = levelParams(g, g.level);
     var i, j, d, s;
 
     g.spawn_timer_ms -= dt;
@@ -347,7 +379,7 @@
   function init(nLeds, seed, opt) {
     var g = {
       n_leds: Math.max(MIN_LEDS, Math.min(MAX_LEDS, nLeds | 0)),
-      opt: { wrong_hit_keeps_dot: !!(opt && opt.wrong_hit_keeps_dot) },
+      opt: null,
       rng: (seed >>> 0) || 0x9E3779B9,
       state: STATE.ATTRACT, state_ms: 0, countdown_ms: 0, time_ms: 0,
       level: 1, lives: MAX_LIVES, score: 0,
@@ -357,10 +389,17 @@
       palette: [],
       events: 0
     };
+    setOptions(g, opt || defaultOptions());
     clearField(g);
     resetColors(g);
     enterAttract(g);
     return g;
+  }
+
+  function abort(g) {
+    if (g.state === STATE.ATTRACT) return;
+    g.events |= EV.ABORTED;
+    enterAttract(g);
   }
 
   function tick(g, dtMs) {
@@ -588,6 +627,7 @@
     RED: RED, YELLOW: YELLOW, BLUE: BLUE, ORANGE: ORANGE, PURPLE: PURPLE, GREEN: GREEN, WHITE: WHITE,
     STATE: STATE, EV: EV, LEVELS: LEVELS, PALETTE_ORDER: PALETTE_ORDER,
     init: init, tick: tick, press: press, takeEvents: takeEvents, render: render,
+    defaultOptions: defaultOptions, setOptions: setOptions, abort: abort,
     colorForMask: colorForMask, setColor: setColor, getColor: getColor, resetColors: resetColors,
     renderPalette: renderPalette,
     levelParams: levelParams, stateName: stateName, activeDots: activeDots

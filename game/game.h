@@ -76,12 +76,21 @@ typedef enum {
 #define GAME_EV_LIFE_LOST    (1u << 6)
 #define GAME_EV_LEVEL_CLEAR  (1u << 7)
 #define GAME_EV_GAME_OVER    (1u << 8)
+#define GAME_EV_ABORTED      (1u << 9)   /* a running game was stopped from outside */
 
 typedef struct {
     /* Stricter rule: a dot hit by a wrong colour keeps coming instead of
      * disappearing, so it can cost a second life at the player. */
     bool wrong_hit_keeps_dot;
+    int32_t level1_dots;      /* dots in level 1 (default 8) */
+    int32_t dots_per_level;   /* extra dots for every next level (default 2) */
+    int32_t speed_pct;        /* 100 = normal; 50 = everything takes twice as long */
 } game_options_t;
+
+#define GAME_DEFAULT_LEVEL1_DOTS   8
+#define GAME_DEFAULT_DOTS_PER_LEVEL 2
+#define GAME_MIN_SPEED_PCT         25
+#define GAME_MAX_SPEED_PCT         300
 
 typedef struct {
     bool active;
@@ -146,11 +155,24 @@ typedef struct {
     uint32_t events;
 } game_t;
 
+/** Fill opt with the default rules. */
+void game_default_options(game_options_t *opt);
+
 /**
  * Start in the attract state. n_leds is clamped to [GAME_MIN_LEDS,
  * GAME_MAX_LEDS]. opt may be NULL for the default rules.
  */
 void game_init(game_t *g, int32_t n_leds, uint32_t seed, const game_options_t *opt);
+
+/**
+ * Change the rules. Values are clamped (level1_dots >= 1, dots_per_level
+ * >= 0, speed 25..300 %). Takes effect at the next level or spawn, so call
+ * it between games to keep a running game consistent.
+ */
+void game_set_options(game_t *g, const game_options_t *opt);
+
+/** Stop a running game at once: back to the attract state, no score kept. */
+void game_abort(game_t *g);
 
 /** Advance the game. dt_ms is clamped to 1..50 ms. */
 void game_tick(game_t *g, int32_t dt_ms);
@@ -187,8 +209,12 @@ void game_reset_colors(game_t *g);
  */
 void game_render_palette(const game_t *g, game_rgb_t *out);
 
-/** The parameters of a level (1-based; past the table the last row). */
-void game_level_params(int32_t level, game_level_t *out);
+/**
+ * The parameters of a level (1-based; past the table the last row). With a
+ * game, its options apply: dots from level1_dots/dots_per_level and the
+ * crossing time scaled by speed_pct. g may be NULL for the table values.
+ */
+void game_level_params(const game_t *g, int32_t level, game_level_t *out);
 
 /** Number of dots currently on the strip. */
 int32_t game_active_dots(const game_t *g);

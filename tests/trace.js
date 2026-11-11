@@ -47,11 +47,15 @@ function fnv1a(bytes, n) {
 
 const lines = [];
 CONFIGS.forEach((cfg, c) => {
-  const g = G.init(cfg.n_leds, cfg.seed, { wrong_hit_keeps_dot: cfg.keeps_dot });
+  const opt = G.defaultOptions();
+  opt.wrong_hit_keeps_dot = cfg.keeps_dot;
+  if (c === 3) { opt.level1_dots = 3; opt.dots_per_level = 1; opt.speed_pct = 60; }
+  const g = G.init(cfg.n_leds, cfg.seed, opt);
   if (c === 2) G.setColor(g, G.PURPLE, { r: 120, g: 0, b: 200 });
   const leds = new Uint8Array(G.MAX_LEDS * 3);
   const presses = { n: 0 };
   for (let tick = 0; tick < cfg.ticks; tick++) {
+    if (c === 1 && tick === 1234) G.abort(g);
     autoplayStep(g, tick, presses);
     G.tick(g, 16);
     const ev = G.takeEvents(g);

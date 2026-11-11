@@ -21,8 +21,8 @@ The same rules run in three places from one source:
 | Where | What |
 |---|---|
 | [`game/`](game/) | The rules in portable C, integer-only and deterministic. Compiled into the firmware and into the tests. |
-| [`web/`](web/) | The browser version (arrow keys **←** red, **↓** yellow, **→** blue) and the web interface of the ESP32: high scores, player name, live view of the strip. [`game.js`](web/game.js) is a line-by-line port of `game.c`. |
-| [`firmware/`](firmware/) | ESP-IDF / PlatformIO project for a Wemos ESP-WROOM-32 driving a WS2812B strip, three buttons, Wi-Fi and the web page. |
+| [`web/`](web/) | One page with four views: watch the strip live, play from a phone, practice in the browser (arrow keys **←** red, **↓** yellow, **→** blue), and the settings. [`game.js`](web/game.js) is a line-by-line port of `game.c`. |
+| [`firmware/`](firmware/) | ESP-IDF / PlatformIO project for a Wemos ESP-WROOM-32 driving a WS2812B strip, three buttons, optional lights in the buttons, Wi-Fi and the web page. |
 
 [`tests/`](tests/) holds unit tests for the rules and a trace test that runs
 scripted games through both the C and the JavaScript version and checks that
@@ -31,17 +31,18 @@ every LED of every frame is identical.
 ## Play it in the browser
 
 Open [`web/index.html`](web/index.html) in a browser (double-click works, no
-server needed). Arrow keys or the on-screen buttons play; the simulated strip
-defaults to 300 LEDs. Scores stay in the browser's local storage.
+server needed): it starts in practice mode with a simulated strip of 300
+LEDs. Arrow keys or the on-screen buttons play; the number of LEDs, the
+speed and the dots per level can be changed. Scores stay in the browser.
 
 ## Hardware
 
 | Part | Notes |
 |---|---|
 | Wemos ESP-WROOM-32 | Any classic ESP32 board with 4 MB flash works (`board = esp32dev`). |
-| WS2812B LED strip, ~300 LEDs | 5 V. Data from **GPIO 16** through a 300-500 Ω resistor; a 74AHCT125 level shifter helps with long wires. Inject 5 V at both ends of a 5 m strip. |
+| WS2812B LED strip, ~300 LEDs | 5 V. Data from **GPIO 16**; keep that wire short. Inject 5 V at both ends of a 5 m strip when you raise the brightness. |
 | 3 push buttons | **Red GPIO 25**, **yellow GPIO 26**, **blue GPIO 27**, each to GND. The internal pull-ups are used. GPIO 34-39 have no pull-ups, avoid them. |
-| Lights in the buttons (optional) | White 5 V LED modules, LED plus on +5 V, LED minus to **GPIO 32 / 33 / 14**; the pin sinks the current, no transistor. Off by default in menuconfig. |
+| Lights in the buttons (optional) | White 5 V LED modules, LED plus on +5 V, LED minus to **GPIO 32 / 33 / 14**; the pin sinks the current, no transistor. Off by default. |
 | 5 V power supply | See *Power* below. |
 
 [docs/wiring.md](docs/wiring.md) has the wiring diagram for the minimal
@@ -50,7 +51,7 @@ cable types and lengths.
 
 The player sits at the start of the strip (LED 0, nearest the data input).
 If your strip is the other way around, turn on *Player sits at the far end* in
-menuconfig. All pins, the LED count and the brightness are menuconfig settings.
+menuconfig.
 
 ### Power
 
@@ -69,7 +70,7 @@ Two settings keep it safe anyway:
   below what your supply can deliver. Note that 300 LEDs draw about 300 mA
   when they are all off.
 
-The web page shows the current estimate live.
+The settings page shows the current estimate live.
 
 ## Build and flash
 
@@ -98,64 +99,117 @@ anything in `web/`, regenerate it:
 python3 tools/build_web.py
 ```
 
-### Settings (`pio run -t menuconfig` or `idf.py menuconfig` → *Mix 'n Smash*)
+After the first flash over USB, later versions can be uploaded from the
+settings page (*Firmware*): pick `.pio/build/wemos-esp32/firmware.bin` and
+the ESP32 writes it to the second app partition and reboots into it.
+
+### Defaults (`pio run -t menuconfig` or `idf.py menuconfig` → *Mix 'n Smash*)
+
+Everything in menuconfig is a **default**. Once the settings page has saved
+something, those values win; *Terug naar standaard* on that page, or holding
+the red and blue button while powering on, brings the defaults back.
 
 | Setting | Default |
 |---|---|
-| LED strip → Number of LEDs | 300 (16-400) |
-| LED strip → Data GPIO | 16 |
-| LED strip → Player sits at the far end | off |
+| LED strip → Number of LEDs / Data GPIO | 300 / 16 |
+| LED strip → Player sits at the far end | off (menuconfig only) |
 | LED strip → Strip expects RGB instead of GRB | off |
-| LED strip → Brightness | 80 |
-| LED strip → Current limit | 1500 mA |
+| LED strip → Brightness / Current limit | 80 / 1500 mA |
 | Buttons → Red / yellow / blue GPIO | 25 / 26 / 27 |
 | Buttons → Buttons connect to 3.3 V instead of GND | off |
 | Buttons → Lights in the buttons | off; GPIO 32 / 33 / 14 when on |
 | Buttons → Lights are switched by a transistor | off (the GPIO sinks the LED current) |
 | Game → A dot hit by the wrong colour keeps coming | off (stricter variant) |
-| Game → Frame period | 16 ms |
+| Game → Frame period | 16 ms (menuconfig only) |
 | Wi-Fi → Network to join / password | empty: start an access point |
 | Wi-Fi → Access point name / password | `mix-n-smash`, open |
 | Wi-Fi → Hostname | `mix-n-smash` |
 
-## Web interface
+## Web pages
 
 With no Wi-Fi network configured the ESP32 starts an open access point called
 `mix-n-smash`; connect to it and open <http://192.168.4.1>. With a network
 configured it joins that network and announces itself as
-`http://mix-n-smash.local` (the IP is also printed on the serial monitor). If
-joining fails six times it falls back to the access point.
+`http://mix-n-smash.local` (the IP is also printed on the serial monitor and
+shown on the settings page). If joining fails six times it falls back to the
+access point.
 
-The page shows the strip live, the level, lives and score, and the top-10
-table. Enter a name and the next games on the strip are recorded under it.
-The on-screen buttons and arrow keys press the real buttons, which is handy
-for testing without wiring. *Speel hier in de browser* switches the same page
-to the simulated strip.
+The live view goes over a WebSocket: the ESP32 pushes one status message
+every 100 ms to every open page, so a dozen phones can watch at once. Pages
+fall back to polling when the WebSocket is not available.
 
-*Kleuren* opens the colour panel: the RGB value of every colour (red, orange,
-yellow, green, blue, purple, white) with a colour picker. While the panel is
-open the strip shows a colour chart from LED 0, each colour as three LEDs on
-and two off, so you can judge the colours on the real LEDs; the game waits.
-Changes show at once, *Opslaan* keeps them across reboots, *Standaard*
-restores the defaults. The browser version has the same panel for its
-simulated strip. The page sends a heartbeat while the panel is open; the
-strip returns to the game five seconds after the last one, so a closed tab
-cannot leave the chart on.
+| Page | What |
+|---|---|
+| `/` **Kijken** | The strip live, level, lives, score and the top-10. Nothing to press. |
+| `/play` **Spelen** | Play from a phone. Only there when a player password is set (settings page). After the password: give a name, and you either play right away or wait in the queue. The buttons on the page (and the arrow keys) work for the player whose turn it is; while someone plays from a phone, the buttons on the bar are off. *Ik stop* gives the turn up. |
+| `/practice` **Oefenen** | The game in the browser, on a simulated strip, with its own scores and colour panel. Also what `web/index.html` shows when opened from disk. |
+| `/settings` **Instellingen** | Protected by the settings password. The first visit asks you to choose one. |
 
-API, for anything else you want to build on it:
+### Players and the queue
 
-| Method | Path | |
-|---|---|---|
-| GET | `/api/state` | state, level, lives, score, player, best, `leds` as hex |
-| GET | `/api/highscores` | top 10 and the current player |
-| POST | `/api/player` | `{"name": "Bart"}` |
-| POST | `/api/press` | `{"color": "red"}` (or `yellow`, `blue`) |
-| DELETE | `/api/highscores` | clear the table |
-| GET | `/api/palette` | the colours as `"rrggbb"` per name, and the defaults |
-| POST | `/api/palette` | `{"orange": "ff4600", ...}` (any subset), applied at once |
-| POST | `/api/palette/save` | keep the colours across reboots |
-| POST | `/api/palette/reset` | back to the defaults |
-| POST | `/api/preview` | `{"on": true}` shows the colour chart for another 5 s, `false` ends it |
+- One player at a time. Others who give a name wait in the queue (ten at
+  most) and see their position. A name that is already in use is refused with
+  the offer to continue as `Name (2)`.
+- *Beurtwissel na* (settings) hands the turn to the next in line after 1, 2 or
+  3 games; the previous player goes to the back of the queue. *Uit* keeps the
+  turn until the player stops.
+- On the settings page the queue has *Maak actief* (now) or *Volgende* (from
+  the next game, while a game runs), *Verwijder*, and *Spel afbreken*.
+- A phone that goes quiet for 30 seconds (page closed, screen off) loses its
+  place; a current player loses the turn after 30 quiet seconds when no game
+  is running.
+- The current player's name goes into the high scores. Games played with the
+  physical buttons are recorded as *Speler*.
+
+### Settings page
+
+Groups: Wi-Fi (access point name and password, home network and password,
+hostname), Strip (LED count, data GPIO, brightness, current limit, RGB/GRB),
+Game (dots in level 1, extra dots per level, speed percentage, games per turn,
+stricter wrong-hit rule), Buttons (GPIOs, to GND or 3.3 V) and Lights
+(on/off, GPIOs, transistor or not). Brightness, current limit and the game
+rules apply at once; the others are marked *herstart nodig* and a banner
+offers the restart. Also there: the queue, both passwords (the player
+password turns phone play on; *Uitzetten* turns it off), the colour panel
+(RGB value of every colour, with the colour chart on the strip while it is
+open), the high score list with *Wis*, a firmware upload, *Terug naar
+standaard* and *Herstarten*.
+
+Everything runs over plain HTTP on your local network, so the passwords
+travel unencrypted; fine for a game at home. A wrong password blocks logins
+for two seconds, which makes guessing pointless.
+
+**Forgot the settings password?** Hold the **red and blue** buttons while
+powering on. A red bar grows over three seconds; keep holding and the
+settings, passwords and colours are reset to the menuconfig defaults (the
+strip flashes white three times) and the ESP32 restarts. High scores stay.
+
+### API
+
+Sessions are cookies (`mns_admin`, `mns_player`) set by `/api/login`.
+
+| Method | Path | Who | |
+|---|---|---|---|
+| GET | `/api/state` | all | state, level, lives, score, player, best, flags, `leds` as hex (same message as the WebSocket at `/ws`) |
+| GET | `/api/highscores` | all | top 10 |
+| GET | `/api/auth` | all | which passwords exist, which roles this session has |
+| POST | `/api/login` | all | `{"role": "admin"\|"player", "password": "..."}` |
+| POST | `/api/logout` | all | |
+| POST | `/api/password` | admin (first admin password: all) | `{"role": ..., "password": "..."}`, empty removes the player password |
+| GET | `/api/queue` | player, admin | current player, queue, your position; doubles as the heartbeat |
+| POST | `/api/queue` | player | `{"name": "Bart", "accept_suffix": false}`; 409 with a `suggestion` when the name is in use |
+| DELETE | `/api/queue` | player | leave |
+| POST | `/api/queue/admin` | admin | `{"action": "activate"\|"remove", "index": n}` (0 = current player) |
+| POST | `/api/press` | the current player | `{"color": "red"}` (or `yellow`, `blue`) |
+| POST | `/api/game/abort` | admin | stop the running game |
+| GET / POST | `/api/settings` | admin | all settings as flat keys; POST takes any subset, answers with `restart_needed` |
+| POST | `/api/settings/reset` | admin | back to the defaults |
+| POST | `/api/restart` | admin | |
+| GET / POST | `/api/palette` | admin | colours as `"rrggbb"` per name; POST any subset |
+| POST | `/api/palette/save`, `/api/palette/reset` | admin | |
+| POST | `/api/preview` | admin | `{"on": true}` shows the colour chart for another 5 s |
+| DELETE | `/api/highscores` | admin | clear the table |
+| POST | `/api/ota` | admin | raw `firmware.bin` as the body |
 
 ## Levels
 
@@ -179,9 +233,11 @@ slides towards the next level's value. From level 5 dots also vary in speed
 the dot times the level, plus 50 × level + 25 × lives left when a level is
 cleared. Past level 10 the parameters stay at the level-10 values.
 
-The table is `LEVELS` in [`game/game.c`](game/game.c) and
-[`web/game.js`](web/game.js); keep the two identical (the trace test fails
-otherwise).
+The *Dots* column is the default (8 in level 1, +2 per level); the settings
+page can change both numbers, and *Snelheid* scales every crossing time
+(50 % = everything takes twice as long). The rest of the table is `LEVELS` in
+[`game/game.c`](game/game.c) and [`web/game.js`](web/game.js); keep the two
+identical (the trace test fails otherwise).
 
 ## Tests
 
@@ -198,8 +254,9 @@ ESP-IDF v5.4 build and a check that `web_page.h` matches `web/`.
 
 ```
 game/        game.h, game.c   the rules; also an ESP-IDF component
-web/         index.html, game.js   browser version and web interface
+web/         index.html, game.js   the four web views and the browser version
 firmware/    PlatformIO + ESP-IDF project (main/ has the sources)
+docs/        wiring.md, wiring.svg   how to connect everything
 tests/       unit tests, trace comparison, Makefile
 tools/       build_web.py   bundles web/ into firmware/main/web_page.h
 ```

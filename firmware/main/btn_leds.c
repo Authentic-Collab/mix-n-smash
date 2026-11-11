@@ -1,56 +1,50 @@
 #include "btn_leds.h"
+#include "driver/gpio.h"
 #include "esp_log.h"
-#include "sdkconfig.h"
 
 static const char *TAG = "btn_leds";
-
-#ifdef CONFIG_MNS_BTN_LEDS
-
-#include "driver/gpio.h"
 
 #define PRESS_BLINK_MS   120     /* the pressed button goes dark this long */
 #define CHASE_STEP_MS    350
 #define CLEAR_BLINK_MS   120
 #define OVER_BLINK_MS    400
 
-static const gpio_num_t PINS[3] = {
-    CONFIG_MNS_BTN_LED_RED_GPIO, CONFIG_MNS_BTN_LED_YELLOW_GPIO, CONFIG_MNS_BTN_LED_BLUE_GPIO
-};
-
-#ifdef CONFIG_MNS_BTN_LED_ACTIVE_HIGH
-#define ON_LEVEL  1                      /* drives a transistor: high = on */
-#define PIN_MODE  GPIO_MODE_OUTPUT
-#else
-#define ON_LEVEL  0                      /* sinks the LED current: low = on */
-#define PIN_MODE  GPIO_MODE_OUTPUT_OD
-#endif
-
+static bool enabled;
+static gpio_num_t pins[3];
+static int on_level;
 static int32_t dark_ms[3];
 static uint8_t shown = 0xFF;
 
 static void show(uint8_t mask)
 {
-    if (mask == shown) return;
+    if (!enabled || mask == shown) return;
     shown = mask;
     for (int i = 0; i < 3; i++) {
         bool on = (mask >> i) & 1;
-        gpio_set_level(PINS[i], on ? ON_LEVEL : !ON_LEVEL);
+        gpio_set_level(pins[i], on ? on_level : !on_level);
     }
 }
 
-void btn_leds_init(void)
+void btn_leds_init(bool enable, const int32_t gpio[3], bool active_high)
 {
+    enabled = enable;
+    if (!enabled) {
+        ESP_LOGI(TAG, "button lights off");
+        return;
+    }
+    for (int i = 0; i < 3; i++) pins[i] = (gpio_num_t)gpio[i];
+    on_level = active_high ? 1 : 0;
     gpio_config_t io = {
-        .pin_bit_mask = (1ULL << PINS[0]) | (1ULL << PINS[1]) | (1ULL << PINS[2]),
-        .mode = PIN_MODE,
+        .pin_bit_mask = (1ULL << pins[0]) | (1ULL << pins[1]) | (1ULL << pins[2]),
+        .mode = active_high ? GPIO_MODE_OUTPUT : GPIO_MODE_OUTPUT_OD,
         .pull_up_en = GPIO_PULLUP_DISABLE,
         .pull_down_en = GPIO_PULLDOWN_DISABLE,
         .intr_type = GPIO_INTR_DISABLE,
     };
     ESP_ERROR_CHECK(gpio_config(&io));
     show(0);
-    ESP_LOGI(TAG, "button lights on GPIO %d/%d/%d, %s", PINS[0], PINS[1], PINS[2],
-             ON_LEVEL ? "high = on" : "open-drain, low = on");
+    ESP_LOGI(TAG, "button lights on GPIO %d/%d/%d, %s", pins[0], pins[1], pins[2],
+             active_high ? "high = on" : "open-drain, low = on");
 }
 
 /* Which lights the game state asks for (bit 0 red, 1 yellow, 2 blue). */
@@ -75,6 +69,7 @@ static uint8_t pattern(const game_t *g)
 
 void btn_leds_update(const game_t *g, uint8_t pressed, bool preview, int32_t dt_ms)
 {
+    if (!enabled) return;
     uint8_t mask = preview ? 0 : pattern(g);
     for (int i = 0; i < 3; i++) {
         if (pressed & (1u << i)) dark_ms[i] = PRESS_BLINK_MS;
@@ -83,17 +78,3 @@ void btn_leds_update(const game_t *g, uint8_t pressed, bool preview, int32_t dt_
     }
     show(mask);
 }
-
-#else
-
-void btn_leds_init(void)
-{
-    ESP_LOGI(TAG, "button lights disabled in menuconfig");
-}
-
-void btn_leds_update(const game_t *g, uint8_t pressed, bool preview, int32_t dt_ms)
-{
-    (void)g; (void)pressed; (void)preview; (void)dt_ms;
-}
-
-#endif

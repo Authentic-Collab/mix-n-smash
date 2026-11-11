@@ -160,12 +160,35 @@ void game_reset_colors(game_t *g)
     for (int32_t m = 0; m < 8; m++) g->palette[m] = game_color_for_mask((uint8_t)m);
 }
 
-void game_level_params(int32_t level, game_level_t *out)
+void game_level_params(const game_t *g, int32_t level, game_level_t *out)
 {
     int32_t idx = level - 1;
     if (idx < 0) idx = 0;
     if (idx >= GAME_LEVELS) idx = GAME_LEVELS - 1;
     *out = LEVELS[idx];
+    if (g == NULL) return;
+    if (level < 1) level = 1;
+    out->dots = g->opt.level1_dots + (level - 1) * g->opt.dots_per_level;
+    out->cross_ms = out->cross_ms * 100 / g->opt.speed_pct;
+}
+
+void game_default_options(game_options_t *opt)
+{
+    opt->wrong_hit_keeps_dot = false;
+    opt->level1_dots = GAME_DEFAULT_LEVEL1_DOTS;
+    opt->dots_per_level = GAME_DEFAULT_DOTS_PER_LEVEL;
+    opt->speed_pct = 100;
+}
+
+void game_set_options(game_t *g, const game_options_t *opt)
+{
+    g->opt = *opt;
+    if (g->opt.level1_dots < 1) g->opt.level1_dots = 1;
+    if (g->opt.level1_dots > 200) g->opt.level1_dots = 200;
+    if (g->opt.dots_per_level < 0) g->opt.dots_per_level = 0;
+    if (g->opt.dots_per_level > 50) g->opt.dots_per_level = 50;
+    if (g->opt.speed_pct < GAME_MIN_SPEED_PCT) g->opt.speed_pct = GAME_MIN_SPEED_PCT;
+    if (g->opt.speed_pct > GAME_MAX_SPEED_PCT) g->opt.speed_pct = GAME_MAX_SPEED_PCT;
 }
 
 const char *game_state_name(game_state_t state)
@@ -225,7 +248,7 @@ static void start_countdown(game_t *g, int32_t ms)
 static void start_level(game_t *g)
 {
     game_level_t p;
-    game_level_params(g->level, &p);
+    game_level_params(g, g->level, &p);
     clear_dots(g);
     clear_shots(g);
     g->dots_spawned = 0;
@@ -283,8 +306,8 @@ static void lose_life(game_t *g, int32_t flash_ms)
 static void spawn_dot(game_t *g)
 {
     game_level_t p, next;
-    game_level_params(g->level, &p);
-    game_level_params(g->level + 1, &next);
+    game_level_params(g, g->level, &p);
+    game_level_params(g, g->level + 1, &next);
 
     /* The speed creeps from this level's value to the next level's. */
     int32_t cross_ms = lerp_i(p.cross_ms, next.cross_ms, g->dots_spawned, g->dots_total);
@@ -352,7 +375,7 @@ static void resolve_hit(game_t *g, game_shot_t *s, game_dot_t *d)
 static void tick_playing(game_t *g, int32_t dt)
 {
     game_level_t p;
-    game_level_params(g->level, &p);
+    game_level_params(g, g->level, &p);
 
     g->spawn_timer_ms -= dt;
     if (g->dots_spawned < g->dots_total && g->spawn_timer_ms <= 0 &&
@@ -414,7 +437,9 @@ void game_init(game_t *g, int32_t n_leds, uint32_t seed, const game_options_t *o
 {
     memset(g, 0, sizeof(*g));
     g->n_leds = imax(GAME_MIN_LEDS, imin(GAME_MAX_LEDS, n_leds));
-    if (opt) g->opt = *opt;
+    game_options_t defaults;
+    game_default_options(&defaults);
+    game_set_options(g, opt ? opt : &defaults);
     g->rng = seed ? seed : 0x9E3779B9u;
     g->lives = GAME_MAX_LIVES;
     g->level = 1;
@@ -483,6 +508,13 @@ void game_press(game_t *g, uint8_t color)
     default:
         break;
     }
+}
+
+void game_abort(game_t *g)
+{
+    if (g->state == GAME_STATE_ATTRACT) return;
+    g->events |= GAME_EV_ABORTED;
+    enter_attract(g);
 }
 
 uint32_t game_take_events(game_t *g)

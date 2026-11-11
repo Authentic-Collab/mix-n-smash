@@ -10,3 +10,6 @@ CONFIG_FREERTOS_HZ=1000
 # Keep the RMT interrupt in IRAM so Wi-Fi traffic does not glitch the strip.
 CONFIG_RMT_ISR_IRAM_SAFE=y
 CONFIG_HTTPD_MAX_REQ_HDR_LEN=1024
+# WebSocket for the live view, and room for a dozen phones at once.
+CONFIG_HTTPD_WS_SUPPORT=y
+CONFIG_LWIP_MAX_SOCKETS=16

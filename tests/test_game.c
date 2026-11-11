@@ -308,7 +308,7 @@ static void test_level_clear(void)
     run_ms(2100);
     CHECK(g.state == GAME_STATE_PLAYING);
     game_level_t p;
-    game_level_params(2, &p);
+    game_level_params(&g, 2, &p);
     CHECK(g.dots_total == p.dots);
     CHECK(g.dots_spawned == 0);
 }
@@ -317,15 +317,15 @@ static void test_level_params(void)
 {
     printf("level table\n");
     game_level_t a, b, c;
-    game_level_params(0, &a);
-    game_level_params(1, &b);
-    game_level_params(99, &c);
+    game_level_params(NULL, 0, &a);
+    game_level_params(NULL, 1, &b);
+    game_level_params(NULL, 99, &c);
     CHECK(a.dots == b.dots && a.cross_ms == 7000);
     CHECK(c.cross_ms == 2200 && c.max_concurrent == 6);
     for (int32_t l = 1; l < GAME_LEVELS; l++) {
         game_level_t cur, nxt;
-        game_level_params(l, &cur);
-        game_level_params(l + 1, &nxt);
+        game_level_params(NULL, l, &cur);
+        game_level_params(NULL, l + 1, &nxt);
         CHECK(nxt.cross_ms < cur.cross_ms);
         CHECK(nxt.dots >= cur.dots);
         CHECK(nxt.mixed_pct + nxt.triple_pct >= cur.mixed_pct + cur.triple_pct);
@@ -459,10 +459,72 @@ static void test_palette(void)
     CHECK(lit_leds() == 3 + 3 + 3 + 1);
 }
 
+static void test_options_and_abort(void)
+{
+    printf("options: dots per level, speed factor, abort\n");
+    game_options_t opt;
+    game_default_options(&opt);
+    CHECK(opt.level1_dots == 8 && opt.dots_per_level == 2 && opt.speed_pct == 100 && !opt.wrong_hit_keeps_dot);
+
+    game_init(&g, 60, 3, NULL);
+    game_level_t p;
+    game_level_params(&g, 1, &p);
+    CHECK(p.dots == 8 && p.cross_ms == 7000);
+    game_level_params(&g, 4, &p);
+    CHECK(p.dots == 14);                              /* same as the table */
+
+    opt.level1_dots = 5;
+    opt.dots_per_level = 0;
+    opt.speed_pct = 50;
+    game_set_options(&g, &opt);
+    game_level_params(&g, 1, &p);
+    CHECK(p.dots == 5 && p.cross_ms == 14000);        /* half speed: twice the time */
+    game_level_params(&g, 7, &p);
+    CHECK(p.dots == 5 && p.cross_ms == 6200);
+    game_level_params(NULL, 7, &p);
+    CHECK(p.dots == 20 && p.cross_ms == 3100);        /* the table itself is untouched */
+
+    opt.level1_dots = 0; opt.dots_per_level = 99; opt.speed_pct = 1;
+    game_set_options(&g, &opt);
+    CHECK(g.opt.level1_dots == 1 && g.opt.dots_per_level == 50 && g.opt.speed_pct == GAME_MIN_SPEED_PCT);
+
+    /* A game with 5 dots per level ends level 1 after 5 dots. */
+    opt.level1_dots = 5; opt.dots_per_level = 0; opt.speed_pct = 100;
+    game_set_options(&g, &opt);
+    game_press(&g, GAME_RED);
+    run_ms(3100);
+    CHECK(g.state == GAME_STATE_PLAYING && g.dots_total == 5);
+
+    /* Slower dots really move slower. */
+    game_init(&g, 60, 3, NULL);
+    game_press(&g, GAME_RED);
+    run_ms(3600);
+    int32_t pos_normal = -1;
+    for (int32_t i = 0; i < GAME_MAX_DOTS; i++) if (g.dots[i].active) pos_normal = g.dots[i].pos;
+    opt.speed_pct = 50;
+    game_init(&g, 60, 3, &opt);
+    game_press(&g, GAME_RED);
+    run_ms(3600);
+    int32_t pos_slow = -1;
+    for (int32_t i = 0; i < GAME_MAX_DOTS; i++) if (g.dots[i].active) pos_slow = g.dots[i].pos;
+    CHECK(pos_normal > 0 && pos_slow > pos_normal);   /* the slow one got less far */
+
+    /* Abort: back to attract, event, nothing left on the strip. */
+    place_dot(GAME_RED, 30, 0);
+    game_take_events(&g);
+    game_abort(&g);
+    CHECK(g.state == GAME_STATE_ATTRACT);
+    CHECK(game_take_events(&g) == GAME_EV_ABORTED);
+    CHECK(game_active_dots(&g) == 0);
+    game_abort(&g);                                   /* idle: nothing happens */
+    CHECK(game_take_events(&g) == 0);
+}
+
 int main(void)
 {
     test_init_and_attract();
     test_palette();
+    test_options_and_abort();
     test_start_countdown_and_first_dot();
     test_primary_hit();
     test_mixed_hit();
