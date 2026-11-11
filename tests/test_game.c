@@ -412,9 +412,57 @@ static void test_determinism(void)
     CHECK(fnv1a_leds(leds, 300) == fnv1a_leds(leds2, 300));
 }
 
+static void test_palette(void)
+{
+    printf("adjustable palette and colour chart\n");
+    game_init(&g, 300, 1, NULL);
+    game_rgb_t w = game_get_color(&g, GAME_WHITE);
+    CHECK(w.r == 200 && w.g == 200 && w.b == 200);    /* white is kept dimmer */
+    game_rgb_t o = game_get_color(&g, GAME_ORANGE);
+    CHECK(o.r == 255 && o.g == 70 && o.b == 0);
+
+    game_render_palette(&g, leds);
+    CHECK(leds[0].r == 255 && leds[0].g == 0);        /* red: LEDs 0..2 */
+    CHECK(leds[2].r == 255 && led_off(3) && led_off(4));
+    CHECK(leds[5].r == 255 && leds[5].g == 70);       /* orange: LEDs 5..7 */
+    CHECK(leds[10].g == 190);                         /* yellow */
+    CHECK(leds[15].g == 255 && leds[15].r == 0);      /* green */
+    CHECK(leds[20].b == 255 && leds[20].r == 0);      /* blue */
+    CHECK(leds[25].r == 170 && leds[25].b == 255);    /* purple */
+    CHECK(leds[30].r == 200 && leds[32].r == 200);    /* white */
+    CHECK(led_off(33) && led_off(34) && led_off(35));
+    CHECK(lit_leds() == 21);
+
+    game_rgb_t custom = {10, 20, 30};
+    game_set_color(&g, GAME_PURPLE, custom);
+    game_set_color(&g, 0, custom);                    /* ignored */
+    game_set_color(&g, 9, custom);                    /* ignored */
+    game_rgb_t p = game_get_color(&g, GAME_PURPLE);
+    CHECK(p.r == 10 && p.g == 20 && p.b == 30);
+    game_render_palette(&g, leds);
+    CHECK(leds[25].r == 10 && leds[25].g == 20 && leds[25].b == 30);
+
+    /* The game draws dots in the adjusted colour... */
+    setup_playing(300);
+    game_set_color(&g, GAME_PURPLE, custom);
+    place_dot(GAME_PURPLE, 100, 0);
+    game_render(&g, leds);
+    CHECK(leds[100].r == 10 && leds[100].g == 20 && leds[100].b == 30);
+    /* ...and a reset brings the default back. */
+    game_reset_colors(&g);
+    game_render(&g, leds);
+    CHECK(leds[100].r == 170 && leds[100].b == 255);
+
+    /* A short strip just shows what fits. */
+    game_init(&g, 16, 1, NULL);
+    game_render_palette(&g, leds);
+    CHECK(lit_leds() == 3 + 3 + 3 + 1);
+}
+
 int main(void)
 {
     test_init_and_attract();
+    test_palette();
     test_start_countdown_and_first_dot();
     test_primary_hit();
     test_mixed_hit();

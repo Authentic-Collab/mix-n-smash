@@ -51,6 +51,13 @@
   label.check { display: flex; align-items: center; gap: 8px; margin: 10px 0; color: var(--muted); }
   .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0; }
   .muted { color: var(--muted); font-size: .85rem; margin: 8px 0 0; }
+  .panel.wide { grid-column: 1 / -1; }
+  .palette { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 10px; margin: 10px 0; }
+  .prow { display: grid; grid-template-columns: minmax(84px, 1fr) auto auto auto auto; gap: 6px; align-items: center; background: var(--panel-2); border-radius: 10px; padding: 8px 10px; }
+  .prow .lbl { font-weight: 600; min-width: 0; }
+  .prow .lbl small { display: block; color: var(--muted); font-weight: 400; font-size: .78rem; }
+  .prow input[type=color] { width: 44px; height: 34px; border: 0; background: none; padding: 0; cursor: pointer; }
+  .prow input[type=number] { width: 60px; padding: 6px 4px; font-size: .95rem; }
   .hidden { display: none !important; }
 </style>
 </head>
@@ -58,6 +65,7 @@
 <header>
   <h1>Mi<span class="r">x</span> 'n Sma<span class="y">s</span><span class="b">h</span></h1>
   <div class="row">
+    <button id="paletteToggle" class="secondary">Kleuren</button>
     <button id="toggleMode" class="secondary hidden">Speel hier in de browser</button>
     <span id="badge" class="badge">…</span>
   </div>
@@ -81,6 +89,18 @@
   <p class="hint" id="hint"></p>
 
   <div class="panels">
+    <section class="panel wide hidden" id="palettePanel">
+      <h2>Kleuren</h2>
+      <p class="muted">Zolang dit paneel open is, toont de strip vanaf de eerste LED elke kleur als drie LEDs aan en twee uit. Het spel staat ondertussen stil. Wijzigingen zie je meteen; <b>Opslaan</b> bewaart ze, <b>Standaard</b> zet alles terug.</p>
+      <div class="palette" id="paletteRows"></div>
+      <div class="row">
+        <button id="paletteSave" class="secondary">Opslaan</button>
+        <button id="paletteReset" class="secondary">Standaard</button>
+        <button id="paletteClose" class="secondary">Sluiten</button>
+        <span id="paletteStatus" class="muted"></span>
+      </div>
+    </section>
+
     <section class="panel">
       <h2>Speler</h2>
       <form id="nameForm">
@@ -145,13 +165,184 @@
     countdown: 'Klaar? De balk telt af…',
     playing: '← rood   ↓ geel   → blauw',
     level_clear: 'Level gehaald! Je krijgt een leven terug.',
-    game_over: 'Game over. Druk op een knop voor een nieuw spel.'
+    game_over: 'Game over. Druk op een knop voor een nieuw spel.',
+    preview: 'Kleurenvoorbeeld op de strip: drie LEDs aan, twee uit, per kleur.'
   };
 
   var mode = null;                 /* 'sim' or 'live' */
   var served = false;              /* page comes from the ESP32 */
   var sim = { g: null, leds: null, acc: 0, last: 0, raf: 0 };
   var live = { timer: null, state: null, failures: 0 };
+
+  /* ---- Colour palette --------------------------------------------------- */
+
+  var PALETTE = [
+    { key: 'red',    mask: G.RED,    label: 'Rood' },
+    { key: 'orange', mask: G.ORANGE, label: 'Oranje', note: 'rood + geel' },
+    { key: 'yellow', mask: G.YELLOW, label: 'Geel' },
+    { key: 'green',  mask: G.GREEN,  label: 'Groen',  note: 'geel + blauw' },
+    { key: 'blue',   mask: G.BLUE,   label: 'Blauw' },
+    { key: 'purple', mask: G.PURPLE, label: 'Paars',  note: 'rood + blauw' },
+    { key: 'white',  mask: G.WHITE,  label: 'Wit',    note: 'rood + geel + blauw' }
+  ];
+  var palette = { open: false, rows: {}, heartbeat: null, pending: {}, timer: null };
+
+  function hexOf(c) {
+    return [c.r, c.g, c.b].map(function (v) { return ('0' + v.toString(16)).slice(-2); }).join('');
+  }
+  function rgbOf(hex) {
+    hex = String(hex).replace('#', '');
+    if (!/^[0-9a-fA-F]{6}$/.test(hex)) return null;
+    return { r: parseInt(hex.substr(0, 2), 16), g: parseInt(hex.substr(2, 2), 16), b: parseInt(hex.substr(4, 2), 16) };
+  }
+  function clamp255(v) { v = parseInt(v, 10); return isNaN(v) ? 0 : Math.max(0, Math.min(255, v)); }
+
+  function localPalette() {
+    try { return JSON.parse(localStorage.getItem('mns.palette') || '{}'); } catch (e) { return {}; }
+  }
+  function applyLocalPalette(g) {
+    var stored = localPalette();
+    PALETTE.forEach(function (p) {
+      var c = stored[p.key] && rgbOf(stored[p.key]);
+      if (c) G.setColor(g, p.mask, c);
+    });
+  }
+
+  function buildPaletteRows() {
+    var host = $('paletteRows');
+    PALETTE.forEach(function (p) {
+      var row = document.createElement('div');
+      row.className = 'prow';
+      var lbl = document.createElement('div');
+      lbl.className = 'lbl';
+      lbl.textContent = p.label;
+      if (p.note) { var sm = document.createElement('small'); sm.textContent = p.note; lbl.appendChild(sm); }
+      row.appendChild(lbl);
+      var picker = document.createElement('input');
+      picker.type = 'color';
+      picker.title = p.label;
+      row.appendChild(picker);
+      var nums = ['r', 'g', 'b'].map(function (ch) {
+        var inp = document.createElement('input');
+        inp.type = 'number'; inp.min = 0; inp.max = 255; inp.title = p.label + ' ' + ch.toUpperCase();
+        inp.setAttribute('aria-label', p.label + ' ' + ch.toUpperCase());
+        row.appendChild(inp);
+        return inp;
+      });
+      palette.rows[p.key] = { picker: picker, nums: nums };
+      picker.addEventListener('input', function () {
+        var c = rgbOf(picker.value);
+        if (c) paletteChange(p, c);
+      });
+      nums.forEach(function (inp) {
+        inp.addEventListener('input', function () {
+          paletteChange(p, { r: clamp255(nums[0].value), g: clamp255(nums[1].value), b: clamp255(nums[2].value) });
+        });
+      });
+      host.appendChild(row);
+    });
+  }
+
+  function showPaletteColor(key, c) {
+    var r = palette.rows[key];
+    r.picker.value = '#' + hexOf(c);
+    if (document.activeElement !== r.nums[0]) r.nums[0].value = c.r;
+    if (document.activeElement !== r.nums[1]) r.nums[1].value = c.g;
+    if (document.activeElement !== r.nums[2]) r.nums[2].value = c.b;
+  }
+
+  function showPaletteFrom(colors) {
+    PALETTE.forEach(function (p) {
+      var c = colors[p.key];
+      if (c) showPaletteColor(p.key, c);
+    });
+  }
+
+  function paletteChange(p, c) {
+    showPaletteColor(p.key, c);
+    if (mode === 'live') {
+      palette.pending[p.key] = hexOf(c);
+      clearTimeout(palette.timer);
+      palette.timer = setTimeout(flushPalette, 120);
+    } else if (sim.g) {
+      G.setColor(sim.g, p.mask, c);
+    }
+    $('paletteStatus').textContent = '';
+  }
+
+  function flushPalette() {
+    var body = palette.pending;
+    palette.pending = {};
+    fetch('/api/palette', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(body) }).catch(function () {});
+  }
+
+  function paletteLoad() {
+    if (mode === 'live') {
+      fetch('/api/palette', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+        var colors = {};
+        PALETTE.forEach(function (p) { colors[p.key] = rgbOf(d.colors[p.key]); });
+        showPaletteFrom(colors);
+      }).catch(function () { $('paletteStatus').textContent = 'Kleuren niet kunnen laden.'; });
+    } else if (sim.g) {
+      var colors = {};
+      PALETTE.forEach(function (p) { colors[p.key] = G.getColor(sim.g, p.mask); });
+      showPaletteFrom(colors);
+    }
+  }
+
+  function sendPreview(on) {
+    fetch('/api/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ on: on }) }).catch(function () {});
+  }
+
+  function paletteOpen() {
+    palette.open = true;
+    $('palettePanel').classList.remove('hidden');
+    $('paletteToggle').textContent = 'Kleuren sluiten';
+    $('paletteStatus').textContent = '';
+    paletteLoad();
+    if (mode === 'live') {
+      sendPreview(true);
+      palette.heartbeat = setInterval(function () { sendPreview(true); }, 2000);
+    }
+    $('palettePanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function paletteClose() {
+    palette.open = false;
+    $('palettePanel').classList.add('hidden');
+    $('paletteToggle').textContent = 'Kleuren';
+    clearInterval(palette.heartbeat);
+    palette.heartbeat = null;
+    if (mode === 'live') sendPreview(false);
+  }
+
+  function paletteSave() {
+    if (mode === 'live') {
+      clearTimeout(palette.timer);
+      if (Object.keys(palette.pending).length) flushPalette();
+      fetch('/api/palette/save', { method: 'POST' }).then(function (r) {
+        $('paletteStatus').textContent = r.ok ? 'Opgeslagen in de ESP32.' : 'Opslaan mislukt.';
+      }).catch(function () { $('paletteStatus').textContent = 'Opslaan mislukt.'; });
+    } else if (sim.g) {
+      var stored = {};
+      PALETTE.forEach(function (p) { stored[p.key] = hexOf(G.getColor(sim.g, p.mask)); });
+      try { localStorage.setItem('mns.palette', JSON.stringify(stored)); } catch (e) { /* ignore */ }
+      $('paletteStatus').textContent = 'Opgeslagen in deze browser.';
+    }
+  }
+
+  function paletteReset() {
+    if (mode === 'live') {
+      fetch('/api/palette/reset', { method: 'POST' }).then(function () { paletteLoad(); }).catch(function () {});
+    } else if (sim.g) {
+      G.resetColors(sim.g);
+      try { localStorage.removeItem('mns.palette'); } catch (e) { /* ignore */ }
+      paletteLoad();
+    }
+    $('paletteStatus').textContent = 'Standaardkleuren.';
+  }
 
   /* ---- Strip drawing -------------------------------------------------- */
 
@@ -275,6 +466,8 @@
     n = Math.max(G.MIN_LEDS, Math.min(G.MAX_LEDS, n));
     $('nLeds').value = n;
     sim.g = G.init(n, (Math.random() * 4294967296) >>> 0, { wrong_hit_keeps_dot: $('keepsDot').checked });
+    applyLocalPalette(sim.g);
+    if (palette.open) paletteLoad();
     sim.leds = new Uint8Array(n * 3);
     sim.last = performance.now();
     sim.acc = 0;
@@ -290,6 +483,14 @@
   function simFrame(now) {
     var elapsed = now - sim.last;
     sim.last = now;
+    if (palette.open) {                      /* colour chart; the game waits */
+      sim.acc = 0;
+      G.renderPalette(sim.g, sim.leds);
+      drawStrip(sim.leds, sim.g.n_leds);
+      $('hint').textContent = HINTS.preview;
+      sim.raf = requestAnimationFrame(simFrame);
+      return;
+    }
     if (elapsed > 250) elapsed = 250;        /* tab was hidden: do not fast-forward */
     sim.acc += elapsed;
     var steps = 0;
@@ -313,7 +514,7 @@
       live.failures = 0;
       setBadge('Live op de strip', 'live');
       drawStrip(hexToLeds(s.leds, s.n), s.n);
-      updateHud(s.state, s.level, s.lives, s.score, s.best, s.player);
+      updateHud(s.preview ? 'preview' : s.state, s.level, s.lives, s.score, s.best, s.player);
       $('liveInfo').textContent = 'Je ziet de strip die aan de ESP32 hangt (' + s.n + ' LEDs, ongeveer ' + s.ma +
         ' mA). De knoppen en pijltjestoetsen hier drukken op de echte knoppen.';
       if (s.state !== live.state) {
@@ -410,6 +611,16 @@
 
   $('applySettings').addEventListener('click', function () { simStart(); $('applySettings').blur(); });
 
+  buildPaletteRows();
+  $('paletteToggle').addEventListener('click', function () {
+    if (palette.open) paletteClose(); else paletteOpen();
+    $('paletteToggle').blur();
+  });
+  $('paletteClose').addEventListener('click', paletteClose);
+  $('paletteSave').addEventListener('click', paletteSave);
+  $('paletteReset').addEventListener('click', paletteReset);
+  window.addEventListener('pagehide', function () { if (palette.open && mode === 'live') sendPreview(false); });
+
   $('toggleMode').addEventListener('click', function () {
     setMode(mode === 'live' ? 'sim' : 'live');
     $('toggleMode').blur();
@@ -422,6 +633,7 @@
   /* ---- Mode ------------------------------------------------------------- */
 
   function setMode(m) {
+    if (palette.open) paletteClose();
     mode = m;
     if (m === 'live') {
       simStop();

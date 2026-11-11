@@ -130,9 +130,34 @@ game_rgb_t game_color_for_mask(uint8_t mask)
     case GAME_ORANGE: { game_rgb_t c = {255, 70, 0};    return c; }
     case GAME_PURPLE: { game_rgb_t c = {170, 0, 255};   return c; }
     case GAME_GREEN:  { game_rgb_t c = {0, 255, 0};     return c; }
-    case GAME_WHITE:  { game_rgb_t c = {255, 255, 255}; return c; }
+    case GAME_WHITE:  { game_rgb_t c = {200, 200, 200}; return c; }  /* three channels: kept dimmer */
     default:          return COL_OFF;
     }
+}
+
+const uint8_t game_palette_order[GAME_PALETTE_COLORS] = {
+    GAME_RED, GAME_ORANGE, GAME_YELLOW, GAME_GREEN, GAME_BLUE, GAME_PURPLE, GAME_WHITE
+};
+
+/* The colour shown for a mask, from the adjustable palette. */
+static game_rgb_t pal(const game_t *g, uint8_t mask)
+{
+    return g->palette[mask & 7];
+}
+
+void game_set_color(game_t *g, uint8_t mask, game_rgb_t color)
+{
+    if (mask >= 1 && mask <= 7) g->palette[mask] = color;
+}
+
+game_rgb_t game_get_color(const game_t *g, uint8_t mask)
+{
+    return pal(g, mask);
+}
+
+void game_reset_colors(game_t *g)
+{
+    for (int32_t m = 0; m < 8; m++) g->palette[m] = game_color_for_mask((uint8_t)m);
 }
 
 void game_level_params(int32_t level, game_level_t *out)
@@ -313,7 +338,7 @@ static void resolve_hit(game_t *g, game_shot_t *s, game_dot_t *d)
             g->events |= GAME_EV_DOT_CLEARED;
             d->active = false;
         } else {
-            add_flash(g, led, game_color_for_mask(s->mask), FLASH_REDUCE_MS);
+            add_flash(g, led, pal(g, s->mask), FLASH_REDUCE_MS);
             g->events |= GAME_EV_DOT_REDUCED;
         }
     } else {
@@ -393,6 +418,7 @@ void game_init(game_t *g, int32_t n_leds, uint32_t seed, const game_options_t *o
     g->rng = seed ? seed : 0x9E3779B9u;
     g->lives = GAME_MAX_LIVES;
     g->level = 1;
+    game_reset_colors(g);
     enter_attract(g);
 }
 
@@ -507,7 +533,7 @@ static void render_attract(const game_t *g, game_rgb_t *out)
     int32_t phase = (int32_t)(g->time_ms % ATTRACT_PERIOD_MS) * spacing / ATTRACT_PERIOD_MS;
     for (int32_t j = 0; j < ATTRACT_COMETS; j++) {
         int32_t head = GAME_PLAY_START * ONE + (j * spacing + (len - phase)) % len;
-        game_rgb_t c = scale(game_color_for_mask(WHEEL[j]), 6, 10);
+        game_rgb_t c = scale(pal(g, WHEEL[j]), 6, 10);
         int32_t led = head / ONE;
         for (int32_t k = 0; k < COMET_TAIL; k++) {
             if (led + k >= g->n_leds) break;
@@ -532,12 +558,12 @@ static void render_playing(const game_t *g, game_rgb_t *out)
     for (int32_t i = 0; i < GAME_MAX_DOTS; i++) {
         const game_dot_t *d = &g->dots[i];
         if (!d->active) continue;
-        add_segment(g, out, d->pos, d->pos + dl, game_color_for_mask(d->mask), lo, hi);
+        add_segment(g, out, d->pos, d->pos + dl, pal(g, d->mask), lo, hi);
     }
     for (int32_t i = 0; i < GAME_MAX_SHOTS; i++) {
         const game_shot_t *s = &g->shots[i];
         if (!s->active) continue;
-        game_rgb_t c = game_color_for_mask(s->mask);
+        game_rgb_t c = pal(g, s->mask);
         add_segment(g, out, s->pos, s->pos + ONE, c, lo, hi);
         add_segment(g, out, s->pos - ONE, s->pos, scale(c, 4, 10), lo, hi);
     }
@@ -559,7 +585,7 @@ static void render_level_clear(const game_t *g, game_rgb_t *out)
         for (int32_t k = 0; k < len; k++) {
             int32_t led = head - k;
             if (led < GAME_PLAY_START || led >= g->n_leds) continue;
-            game_rgb_t c = game_color_for_mask(WHEEL[(k * 6 / len) % 6]);
+            game_rgb_t c = pal(g, WHEEL[(k * 6 / len) % 6]);
             add_px(g, out, led, c, (len - k) * ONE / len);
         }
     } else {
@@ -609,4 +635,16 @@ void game_render(const game_t *g, game_rgb_t *out)
     case GAME_STATE_GAME_OVER:   render_game_over(g, out); break;
     }
     render_overlays(g, out);
+}
+
+void game_render_palette(const game_t *g, game_rgb_t *out)
+{
+    memset(out, 0, sizeof(game_rgb_t) * (size_t)g->n_leds);
+    for (int32_t i = 0; i < GAME_PALETTE_COLORS; i++) {
+        game_rgb_t c = pal(g, game_palette_order[i]);
+        for (int32_t k = 0; k < 3; k++) {
+            int32_t led = i * 5 + k;              /* three on, two off */
+            if (led < g->n_leds) out[led] = c;
+        }
+    }
 }

@@ -28,6 +28,10 @@ int main(void)
         const trace_config_t *cfg = &CONFIGS[c];
         game_options_t opt = { .wrong_hit_keeps_dot = cfg->keeps_dot };
         game_init(&g, cfg->n_leds, cfg->seed, &opt);
+        if (c == 2) {
+            game_rgb_t purple = {120, 0, 200};   /* a custom colour must show up in the frames */
+            game_set_color(&g, GAME_PURPLE, purple);
+        }
         int32_t presses = 0;
         for (int32_t tick = 0; tick < cfg->ticks; tick++) {
             autoplay_step(&g, tick, &presses);
@@ -38,6 +42,8 @@ int main(void)
                    (int)g.level, (int)g.lives, (unsigned)g.score, (unsigned)ev,
                    (unsigned)fnv1a_leds(leds, g.n_leds));
         }
+        game_render_palette(&g, leds);
+        printf("%zu palette %08x\n", c, (unsigned)fnv1a_leds(leds, g.n_leds));
     }
     return 0;
 }

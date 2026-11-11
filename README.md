@@ -8,7 +8,8 @@ and **blue**. Hit each dot with the colour it is made of before it reaches you.
 - A **mixed** dot needs both of its colours: **orange** = red + yellow,
   **purple** = red + blue, **green** = yellow + blue. Hit an orange dot with
   yellow and a red dot remains, which a red shot then neutralises.
-- From level 5, **white** dots need all three colours.
+- From level 5, **white** dots need all three colours. White is shown a bit
+  dimmer (200/200/200) because it lights all three LED channels.
 - A **wrong colour** (blue on orange, say) or a dot that **reaches you** costs a
   life. You start with three; the first three LEDs show them.
 - Every level has a fixed number of dots. Clear them and you get a rainbow, a
@@ -41,6 +42,10 @@ defaults to 300 LEDs. Scores stay in the browser's local storage.
 | WS2812B LED strip, ~300 LEDs | 5 V. Data from **GPIO 16** through a 300-500 Ω resistor; a 74AHCT125 level shifter helps with long wires. Inject 5 V at both ends of a 5 m strip. |
 | 3 push buttons | **Red GPIO 25**, **yellow GPIO 26**, **blue GPIO 27**, each to GND. The internal pull-ups are used. GPIO 34-39 have no pull-ups, avoid them. |
 | 5 V power supply | See *Power* below. |
+
+[docs/wiring.md](docs/wiring.md) has the wiring diagram for the minimal
+setup (ESP32 box at the strip, buttons over an ethernet cable) with pins,
+cable types and lengths.
 
 The player sits at the start of the strip (LED 0, nearest the data input).
 If your strip is the other way around, turn on *Player sits at the far end* in
@@ -124,6 +129,16 @@ The on-screen buttons and arrow keys press the real buttons, which is handy
 for testing without wiring. *Speel hier in de browser* switches the same page
 to the simulated strip.
 
+*Kleuren* opens the colour panel: the RGB value of every colour (red, orange,
+yellow, green, blue, purple, white) with a colour picker. While the panel is
+open the strip shows a colour chart from LED 0, each colour as three LEDs on
+and two off, so you can judge the colours on the real LEDs; the game waits.
+Changes show at once, *Opslaan* keeps them across reboots, *Standaard*
+restores the defaults. The browser version has the same panel for its
+simulated strip. The page sends a heartbeat while the panel is open; the
+strip returns to the game five seconds after the last one, so a closed tab
+cannot leave the chart on.
+
 API, for anything else you want to build on it:
 
 | Method | Path | |
@@ -133,6 +148,11 @@ API, for anything else you want to build on it:
 | POST | `/api/player` | `{"name": "Bart"}` |
 | POST | `/api/press` | `{"color": "red"}` (or `yellow`, `blue`) |
 | DELETE | `/api/highscores` | clear the table |
+| GET | `/api/palette` | the colours as `"rrggbb"` per name, and the defaults |
+| POST | `/api/palette` | `{"orange": "ff4600", ...}` (any subset), applied at once |
+| POST | `/api/palette/save` | keep the colours across reboots |
+| POST | `/api/palette/reset` | back to the defaults |
+| POST | `/api/preview` | `{"on": true}` shows the colour chart for another 5 s, `false` ends it |
 
 ## Levels
 

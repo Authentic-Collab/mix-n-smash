@@ -43,6 +43,7 @@ extern "C" {
 #define GAME_MAX_SHOTS     12
 #define GAME_MAX_FLASHES   8
 #define GAME_LEVELS        10     /* levels past the last one reuse it */
+#define GAME_PALETTE_COLORS 7     /* red, orange, yellow, green, blue, purple, white */
 
 /* Colours are bit masks: mixing is OR, a hit removes bits with AND NOT. */
 #define GAME_RED           1u
@@ -140,6 +141,8 @@ typedef struct {
     game_shot_t shots[GAME_MAX_SHOTS];
     game_flash_t flashes[GAME_MAX_FLASHES];
 
+    game_rgb_t palette[8];  /* colour shown for each colour mask (index = mask) */
+
     uint32_t events;
 } game_t;
 
@@ -161,8 +164,28 @@ uint32_t game_take_events(game_t *g);
 /** Write the colour of every LED (n_leds entries) for the current state. */
 void game_render(const game_t *g, game_rgb_t *out);
 
-/** The colour a dot with these colour bits shows on the strip. */
+/** The default colour for these colour bits (white is kept dimmer to save power). */
 game_rgb_t game_color_for_mask(uint8_t mask);
+
+/* ---- Adjustable palette ------------------------------------------------- */
+
+/** The colour masks in colour-wheel order, then white; for settings pages. */
+extern const uint8_t game_palette_order[GAME_PALETTE_COLORS];
+
+/** Change the colour shown for a mask (1..7). Takes effect at the next render. */
+void game_set_color(game_t *g, uint8_t mask, game_rgb_t color);
+
+/** The colour currently shown for a mask. */
+game_rgb_t game_get_color(const game_t *g, uint8_t mask);
+
+/** Back to the defaults of game_color_for_mask(). */
+void game_reset_colors(game_t *g);
+
+/**
+ * Colour chart for tuning the palette: from LED 0, every colour in
+ * game_palette_order as three LEDs on and two off. Writes n_leds entries.
+ */
+void game_render_palette(const game_t *g, game_rgb_t *out);
 
 /** The parameters of a level (1-based; past the table the last row). */
 void game_level_params(int32_t level, game_level_t *out);

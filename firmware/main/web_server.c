@@ -43,7 +43,7 @@ static esp_err_t state_get(httpd_req_t *req)
     int n = snprintf(json, sizeof(json),
                      "{\"state\":\"%s\",\"level\":%d,\"lives\":%d,\"score\":%u,"
                      "\"player\":\"%s\",\"best\":%u,\"n\":%d,\"keeps\":%s,"
-                     "\"frame\":%u,\"ma\":%u,\"leds\":\"",
+                     "\"preview\":%s,\"frame\":%u,\"ma\":%u,\"leds\":\"",
                      game_state_name(snap.state), (int)snap.level, (int)snap.lives,
                      (unsigned)snap.score, player, (unsigned)highscores_best(), (int)snap.n_leds,
 #ifdef CONFIG_MNS_WRONG_HIT_KEEPS_DOT
@@ -51,7 +51,7 @@ static esp_err_t state_get(httpd_req_t *req)
 #else
                      "false",
 #endif
-                     (unsigned)snap.frame, (unsigned)snap.current_ma);
+                     snap.preview ? "true" : "false", (unsigned)snap.frame, (unsigned)snap.current_ma);
     static const char hex[] = "0123456789abcdef";
     for (int32_t i = 0; i < snap.n_leds && n + 8 < (int)sizeof(json); i++) {
         const game_rgb_t c = snap.leds[i];
@@ -174,6 +174,105 @@ static esp_err_t press_post(httpd_req_t *req)
     return httpd_resp_send(req, NULL, 0);
 }
 
+/* ---- Palette ------------------------------------------------------------ */
+
+typedef struct {
+    const char *name;
+    uint8_t mask;
+} color_name_t;
+
+static const color_name_t COLOR_NAMES[GAME_PALETTE_COLORS] = {
+    {"red", GAME_RED}, {"orange", GAME_ORANGE}, {"yellow", GAME_YELLOW}, {"green", GAME_GREEN},
+    {"blue", GAME_BLUE}, {"purple", GAME_PURPLE}, {"white", GAME_WHITE},
+};
+
+static int append_colors(char *buf, int n, size_t cap, const game_rgb_t *pal)
+{
+    for (int i = 0; i < GAME_PALETTE_COLORS && n < (int)cap - 32; i++) {
+        game_rgb_t c = pal[COLOR_NAMES[i].mask];
+        n += snprintf(buf + n, cap - (size_t)n, "%s\"%s\":\"%02x%02x%02x\"",
+                      i ? "," : "", COLOR_NAMES[i].name, c.r, c.g, c.b);
+    }
+    return n;
+}
+
+static esp_err_t palette_get(httpd_req_t *req)
+{
+    game_rgb_t pal[8], defaults[8];
+    app_get_palette(pal);
+    for (int m = 0; m < 8; m++) defaults[m] = game_color_for_mask((uint8_t)m);
+    app_snapshot_get(&snap);
+
+    int n = snprintf(json, sizeof(json), "{\"preview\":%s,\"colors\":{", snap.preview ? "true" : "false");
+    n = append_colors(json, n, sizeof(json), pal);
+    n += snprintf(json + n, sizeof(json) - (size_t)n, "},\"defaults\":{");
+    n = append_colors(json, n, sizeof(json), defaults);
+    snprintf(json + n, sizeof(json) - (size_t)n, "}}");
+    return send_json(req, json);
+}
+
+static bool parse_hex_color(const char *text, game_rgb_t *out)
+{
+    if (*text == '#') text++;
+    if (strlen(text) != 6) return false;
+    unsigned v = 0;
+    for (int i = 0; i < 6; i++) {
+        char c = text[i];
+        unsigned d;
+        if (c >= '0' && c <= '9') d = (unsigned)(c - '0');
+        else if (c >= 'a' && c <= 'f') d = (unsigned)(c - 'a' + 10);
+        else if (c >= 'A' && c <= 'F') d = (unsigned)(c - 'A' + 10);
+        else return false;
+        v = (v << 4) | d;
+    }
+    out->r = (uint8_t)(v >> 16);
+    out->g = (uint8_t)(v >> 8);
+    out->b = (uint8_t)v;
+    return true;
+}
+
+static esp_err_t palette_post(httpd_req_t *req)
+{
+    if (!read_body(req)) return ESP_OK;
+    int changed = 0;
+    for (int i = 0; i < GAME_PALETTE_COLORS; i++) {
+        char hex[16];
+        game_rgb_t c;
+        if (json_get(body, COLOR_NAMES[i].name, hex, sizeof(hex)) && parse_hex_color(hex, &c)) {
+            app_set_color(COLOR_NAMES[i].mask, c);
+            changed++;
+        }
+    }
+    if (!changed) {
+        return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "expected {\"orange\": \"ff4600\", ...}");
+    }
+    return palette_get(req);
+}
+
+static esp_err_t palette_save(httpd_req_t *req)
+{
+    if (!app_save_palette()) {
+        return httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "could not write flash");
+    }
+    return palette_get(req);
+}
+
+static esp_err_t palette_reset(httpd_req_t *req)
+{
+    app_reset_palette();
+    return palette_get(req);
+}
+
+static esp_err_t preview_post(httpd_req_t *req)
+{
+    if (!read_body(req)) return ESP_OK;
+    char on[8] = "true";
+    json_get(body, "on", on, sizeof(on));
+    app_set_preview(strcmp(on, "false") != 0 && strcmp(on, "0") != 0);
+    httpd_resp_set_status(req, "204 No Content");
+    return httpd_resp_send(req, NULL, 0);
+}
+
 static esp_err_t highscores_delete(httpd_req_t *req)
 {
     highscores_clear();
@@ -185,7 +284,7 @@ void web_server_start(void)
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.stack_size = 6144;
     config.lru_purge_enable = true;
-    config.max_uri_handlers = 8;
+    config.max_uri_handlers = 16;
 
     httpd_handle_t server = NULL;
     esp_err_t err = httpd_start(&server, &config);
@@ -200,6 +299,11 @@ void web_server_start(void)
         { .uri = "/api/highscores", .method = HTTP_DELETE, .handler = highscores_delete },
         { .uri = "/api/player",     .method = HTTP_POST,   .handler = player_post },
         { .uri = "/api/press",      .method = HTTP_POST,   .handler = press_post },
+        { .uri = "/api/palette",    .method = HTTP_GET,    .handler = palette_get },
+        { .uri = "/api/palette",    .method = HTTP_POST,   .handler = palette_post },
+        { .uri = "/api/palette/save",  .method = HTTP_POST, .handler = palette_save },
+        { .uri = "/api/palette/reset", .method = HTTP_POST, .handler = palette_reset },
+        { .uri = "/api/preview",    .method = HTTP_POST,   .handler = preview_post },
     };
     for (size_t i = 0; i < sizeof(uris) / sizeof(uris[0]); i++) {
         ESP_ERROR_CHECK(httpd_register_uri_handler(server, &uris[i]));

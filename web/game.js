@@ -105,9 +105,24 @@
       case ORANGE: return rgb(255, 70, 0);
       case PURPLE: return rgb(170, 0, 255);
       case GREEN:  return rgb(0, 255, 0);
-      case WHITE:  return rgb(255, 255, 255);
+      case WHITE:  return rgb(200, 200, 200);   /* three channels: kept dimmer */
       default:     return COL_OFF;
     }
+  }
+
+  var PALETTE_ORDER = [RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE, WHITE];
+
+  /* The colour shown for a mask, from the adjustable palette. */
+  function pal(g, mask) { return g.palette[mask & 7]; }
+
+  function setColor(g, mask, color) {
+    if (mask >= 1 && mask <= 7) g.palette[mask] = rgb(color.r, color.g, color.b);
+  }
+
+  function getColor(g, mask) { return pal(g, mask); }
+
+  function resetColors(g) {
+    for (var m = 0; m < 8; m++) g.palette[m] = colorForMask(m);
   }
 
   function levelParams(level) {
@@ -260,7 +275,7 @@
         g.events |= EV.DOT_CLEARED;
         d.active = false;
       } else {
-        addFlash(g, led, colorForMask(s.mask), FLASH_REDUCE_MS);
+        addFlash(g, led, pal(g, s.mask), FLASH_REDUCE_MS);
         g.events |= EV.DOT_REDUCED;
       }
     } else {
@@ -339,9 +354,11 @@
       dots_spawned: 0, dots_total: 0, spawn_timer_ms: 0,
       zone_flash_ms: 0, zone_flash_total_ms: 0,
       dots: [], shots: [], flashes: [],
+      palette: [],
       events: 0
     };
     clearField(g);
+    resetColors(g);
     enterAttract(g);
     return g;
   }
@@ -452,7 +469,7 @@
     var phase = idiv((g.time_ms % ATTRACT_PERIOD_MS) * spacing, ATTRACT_PERIOD_MS);
     for (var j = 0; j < ATTRACT_COMETS; j++) {
       var head = PLAY_START * ONE + (j * spacing + (len - phase)) % len;
-      var c = scale(colorForMask(WHEEL[j]), 6, 10);
+      var c = scale(pal(g, WHEEL[j]), 6, 10);
       var led = idiv(head, ONE);
       for (var k = 0; k < COMET_TAIL; k++) {
         if (led + k >= g.n_leds) break;
@@ -476,12 +493,12 @@
     for (i = 0; i < MAX_DOTS; i++) {
       var d = g.dots[i];
       if (!d.active) continue;
-      addSegment(g, out, d.pos, d.pos + dl, colorForMask(d.mask), lo, hi);
+      addSegment(g, out, d.pos, d.pos + dl, pal(g, d.mask), lo, hi);
     }
     for (i = 0; i < MAX_SHOTS; i++) {
       var s = g.shots[i];
       if (!s.active) continue;
-      var c = colorForMask(s.mask);
+      var c = pal(g, s.mask);
       addSegment(g, out, s.pos, s.pos + ONE, c, lo, hi);
       addSegment(g, out, s.pos - ONE, s.pos, scale(c, 4, 10), lo, hi);
     }
@@ -500,7 +517,7 @@
       for (var k = 0; k < len; k++) {
         var led = head - k;
         if (led < PLAY_START || led >= g.n_leds) continue;
-        var c = colorForMask(WHEEL[idiv(k * 6, len) % 6]);
+        var c = pal(g, WHEEL[idiv(k * 6, len) % 6]);
         addPx(g, out, led, c, idiv((len - k) * ONE, len));
       }
     } else {
@@ -552,12 +569,27 @@
     return out;
   }
 
+  function renderPalette(g, out) {
+    if (!out) out = new Uint8Array(g.n_leds * 3);
+    out.fill(0, 0, g.n_leds * 3);
+    for (var i = 0; i < PALETTE_ORDER.length; i++) {
+      var c = pal(g, PALETTE_ORDER[i]);
+      for (var k = 0; k < 3; k++) {
+        var led = i * 5 + k;                 /* three on, two off */
+        if (led < g.n_leds) setPx(out, led, c);
+      }
+    }
+    return out;
+  }
+
   return {
     MIN_LEDS: MIN_LEDS, MAX_LEDS: MAX_LEDS, LIVES_LEDS: LIVES_LEDS, PLAY_START: PLAY_START,
     MAX_LIVES: MAX_LIVES, MAX_DOTS: MAX_DOTS, MAX_SHOTS: MAX_SHOTS, LEVEL_COUNT: LEVEL_COUNT,
     RED: RED, YELLOW: YELLOW, BLUE: BLUE, ORANGE: ORANGE, PURPLE: PURPLE, GREEN: GREEN, WHITE: WHITE,
-    STATE: STATE, EV: EV, LEVELS: LEVELS,
+    STATE: STATE, EV: EV, LEVELS: LEVELS, PALETTE_ORDER: PALETTE_ORDER,
     init: init, tick: tick, press: press, takeEvents: takeEvents, render: render,
-    colorForMask: colorForMask, levelParams: levelParams, stateName: stateName, activeDots: activeDots
+    colorForMask: colorForMask, setColor: setColor, getColor: getColor, resetColors: resetColors,
+    renderPalette: renderPalette,
+    levelParams: levelParams, stateName: stateName, activeDots: activeDots
   };
 });

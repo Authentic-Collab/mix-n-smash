@@ -48,6 +48,7 @@ function fnv1a(bytes, n) {
 const lines = [];
 CONFIGS.forEach((cfg, c) => {
   const g = G.init(cfg.n_leds, cfg.seed, { wrong_hit_keeps_dot: cfg.keeps_dot });
+  if (c === 2) G.setColor(g, G.PURPLE, { r: 120, g: 0, b: 200 });
   const leds = new Uint8Array(G.MAX_LEDS * 3);
   const presses = { n: 0 };
   for (let tick = 0; tick < cfg.ticks; tick++) {
@@ -58,5 +59,7 @@ CONFIGS.forEach((cfg, c) => {
     lines.push(`${c} ${tick} ${G.stateName(g.state)} ${g.level} ${g.lives} ${g.score} ${ev} ` +
                fnv1a(leds, g.n_leds).toString(16).padStart(8, '0'));
   }
+  G.renderPalette(g, leds);
+  lines.push(`${c} palette ` + fnv1a(leds, g.n_leds).toString(16).padStart(8, '0'));
 });
 process.stdout.write(lines.join('\n') + '\n');

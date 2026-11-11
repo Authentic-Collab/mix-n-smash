@@ -25,16 +25,23 @@
 #include "highscores.h"
 #include "net.h"
 #include "sdkconfig.h"
+#include "settings.h"
 #include "strip.h"
 #include "web_server.h"
 
 static const char *TAG = "mns";
 
+#define PREVIEW_HOLD_US (5 * 1000 * 1000)
+
 static game_t game;
 static game_rgb_t frame[GAME_MAX_LEDS];
 static app_snapshot_t snapshot;
-static SemaphoreHandle_t snapshot_lock;
+static SemaphoreHandle_t snapshot_lock;   /* also guards palette and preview_until */
 static QueueHandle_t remote_presses;
+
+static game_rgb_t palette[8];             /* source of truth; the game task copies it */
+static bool palette_changed;
+static int64_t preview_until_us;
 
 void app_snapshot_get(app_snapshot_t *out)
 {
@@ -48,9 +55,62 @@ void app_remote_press(uint8_t color)
     xQueueSend(remote_presses, &color, 0);
 }
 
-static void publish_snapshot(uint32_t frame_no)
+void app_get_palette(game_rgb_t out[8])
 {
     xSemaphoreTake(snapshot_lock, portMAX_DELAY);
+    memcpy(out, palette, sizeof(palette));
+    xSemaphoreGive(snapshot_lock);
+}
+
+void app_set_color(uint8_t mask, game_rgb_t color)
+{
+    if (mask < 1 || mask > 7) return;
+    xSemaphoreTake(snapshot_lock, portMAX_DELAY);
+    palette[mask] = color;
+    palette_changed = true;
+    xSemaphoreGive(snapshot_lock);
+}
+
+void app_reset_palette(void)
+{
+    xSemaphoreTake(snapshot_lock, portMAX_DELAY);
+    for (int m = 0; m < 8; m++) palette[m] = game_color_for_mask((uint8_t)m);
+    palette_changed = true;
+    xSemaphoreGive(snapshot_lock);
+    settings_erase_palette();
+}
+
+bool app_save_palette(void)
+{
+    game_rgb_t copy[8];
+    app_get_palette(copy);
+    return settings_save_palette(copy);
+}
+
+void app_set_preview(bool on)
+{
+    xSemaphoreTake(snapshot_lock, portMAX_DELAY);
+    preview_until_us = on ? esp_timer_get_time() + PREVIEW_HOLD_US : 0;
+    xSemaphoreGive(snapshot_lock);
+}
+
+/* Called by the game task: apply palette changes, tell whether to preview. */
+static bool sync_from_web(void)
+{
+    xSemaphoreTake(snapshot_lock, portMAX_DELAY);
+    if (palette_changed) {
+        for (uint8_t m = 1; m < 8; m++) game_set_color(&game, m, palette[m]);
+        palette_changed = false;
+    }
+    bool preview = esp_timer_get_time() < preview_until_us;
+    xSemaphoreGive(snapshot_lock);
+    return preview;
+}
+
+static void publish_snapshot(uint32_t frame_no, bool preview)
+{
+    xSemaphoreTake(snapshot_lock, portMAX_DELAY);
+    snapshot.preview = preview;
     snapshot.state = game.state;
     snapshot.level = game.level;
     snapshot.lives = game.lives;
@@ -102,6 +162,15 @@ static void game_task(void *arg)
         uint8_t pressed = buttons_poll();
         uint8_t remote;
         while (xQueueReceive(remote_presses, &remote, 0) == pdTRUE) pressed |= remote;
+
+        if (sync_from_web()) {
+            /* Colour chart for the settings page; the game waits. */
+            game_render_palette(&game, frame);
+            strip_show(frame);
+            publish_snapshot(++frame_no, true);
+            continue;
+        }
+
         if (pressed & GAME_RED) game_press(&game, GAME_RED);
         if (pressed & GAME_YELLOW) game_press(&game, GAME_YELLOW);
         if (pressed & GAME_BLUE) game_press(&game, GAME_BLUE);
@@ -111,7 +180,7 @@ static void game_task(void *arg)
 
         game_render(&game, frame);
         strip_show(frame);
-        publish_snapshot(++frame_no);
+        publish_snapshot(++frame_no, false);
     }
 }
 
@@ -133,9 +202,13 @@ void app_main(void)
 #endif
     };
     game_init(&game, CONFIG_MNS_LED_COUNT, esp_random(), &opt);
+    for (int m = 0; m < 8; m++) palette[m] = game_color_for_mask((uint8_t)m);
+    if (settings_load_palette(palette)) {
+        for (uint8_t m = 1; m < 8; m++) game_set_color(&game, m, palette[m]);
+    }
     game_render(&game, frame);
     strip_show(frame);
-    publish_snapshot(0);
+    publish_snapshot(0, false);
 
     net_init();
     web_server_start();
