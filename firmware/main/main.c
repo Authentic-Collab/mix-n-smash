@@ -13,6 +13,7 @@
  */
 #include <string.h>
 #include "app.h"
+#include "btn_leds.h"
 #include "buttons.h"
 #include "esp_log.h"
 #include "esp_random.h"
@@ -167,6 +168,7 @@ static void game_task(void *arg)
             /* Colour chart for the settings page; the game waits. */
             game_render_palette(&game, frame);
             strip_show(frame);
+            btn_leds_update(&game, pressed, true, dt_ms);
             publish_snapshot(++frame_no, true);
             continue;
         }
@@ -180,6 +182,7 @@ static void game_task(void *arg)
 
         game_render(&game, frame);
         strip_show(frame);
+        btn_leds_update(&game, pressed, false, dt_ms);
         publish_snapshot(++frame_no, false);
     }
 }
@@ -193,6 +196,7 @@ void app_main(void)
     highscores_init();
     ESP_ERROR_CHECK(strip_init(CONFIG_MNS_LED_COUNT));
     buttons_init();
+    btn_leds_init();
 
     game_options_t opt = {
 #ifdef CONFIG_MNS_WRONG_HIT_KEEPS_DOT

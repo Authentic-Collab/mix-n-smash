@@ -74,6 +74,45 @@ menu "Mix 'n Smash"
                 pull-up is used. GPIO 34-39 have no internal pull resistors,
                 so they need external ones.
 
+        config MNS_BTN_LEDS
+            bool "Lights in the buttons"
+            default n
+            help
+                Drive an LED in each button: a chase while waiting for a
+                player, on during the game, a blink of the pressed button,
+                blinking at level clear and game over.
+
+        config MNS_BTN_LED_RED_GPIO
+            int "Red button light GPIO"
+            range 0 33
+            default 32
+            depends on MNS_BTN_LEDS
+
+        config MNS_BTN_LED_YELLOW_GPIO
+            int "Yellow button light GPIO"
+            range 0 33
+            default 33
+            depends on MNS_BTN_LEDS
+
+        config MNS_BTN_LED_BLUE_GPIO
+            int "Blue button light GPIO"
+            range 0 33
+            default 14
+            depends on MNS_BTN_LEDS
+
+        config MNS_BTN_LED_ACTIVE_HIGH
+            bool "Lights are switched by a transistor (high = on)"
+            default n
+            depends on MNS_BTN_LEDS
+            help
+                Off (default): the GPIO sinks the LED current itself. Wire
+                the LED's plus to +5 V and its minus, through the module's
+                series resistor, to the GPIO; the pin is open-drain and low
+                means on. Works without a transistor for white or blue
+                5 V LED modules (about 11 mA each).
+                On: the GPIO drives a transistor or a ULN2003 input, high
+                means on.
+
     endmenu
 
     menu "Game"

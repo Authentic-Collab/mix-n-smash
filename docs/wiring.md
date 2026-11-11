@@ -2,8 +2,9 @@
 
 The ESP32 sits in a small box next to the start of the LED strip, with the
 5 V supply (or a power bank). The three buttons are in a separate bar,
-connected over an ethernet cable. No resistors, capacitors or level shifter,
-and no lights in the buttons: this is the simplest version that works.
+connected over an ethernet cable. No resistors, capacitors or level shifter:
+this is the simplest version that works. Lights in the buttons are optional
+(dashed in the diagram) and need no extra parts either, see the end.
 
 ![Wiring diagram](wiring.svg)
 
@@ -18,11 +19,12 @@ and no lights in the buttons: this is the simplest version that works.
 | ESP32 `GPIO 26` | Yellow button | Cat5 white-green | |
 | ESP32 `GPIO 27` | Blue button | Cat5 white-brown | |
 | ESP32 `GND` | Buttons' common | Cat5 blue | |
+| *optional:* +5 V rail | LED plus of all three buttons | Cat5 white-blue | Only with lit buttons |
+| *optional:* ESP32 `GPIO 32` | Red button's LED minus, through its resistor | Cat5 orange | |
+| *optional:* ESP32 `GPIO 33` | Yellow button's LED minus | Cat5 green | |
+| *optional:* ESP32 `GPIO 14` | Blue button's LED minus | Cat5 brown | |
 
-The other four conductors of the ethernet cable stay unused for now
-(orange, green, brown, white-blue). They are reserved for lights in the
-buttons later: one for +5 V and three LED returns, switched by transistors
-at the ESP32 side.
+Without lights, the last four conductors simply stay unconnected.
 
 ## Cables and lengths
 
@@ -78,10 +80,38 @@ at the ESP32 side.
 | LED strip → Current limit | 1000 mA (power bank) |
 | Buttons → Red / yellow / blue GPIO | 25 / 26 / 27 (default) |
 | Buttons → Buttons connect to 3.3 V instead of GND | off (default) |
+| Buttons → Lights in the buttons | off until wired; then on, GPIO 32 / 33 / 14 |
+| Buttons → Lights are switched by a transistor | off (the GPIO sinks the LED current) |
 
-## Later: lights in the buttons
+## Lights in the buttons (optional)
 
-Use the four spare conductors: white-blue for +5 V to the button bar, and
-orange, green, brown as the LED returns. Do not drive 5 V LED modules from a
-GPIO directly; switch each return to GND with a 2N7000 MOSFET or one ULN2003
-in the ESP32 box, and the firmware can then light, blink or dim the buttons.
+Arcade buttons with a 5 V LED module (an LED with its series resistor,
+around 100 to 220 Ω) can be driven straight from the ESP32 without a
+transistor, by letting the GPIO *sink* the current instead of supplying it:
+
+- LED plus → +5 V (Cat5 white-blue, from the rail in the ESP32 box).
+- LED minus, through the module's resistor → the GPIO (orange, green, brown
+  to GPIO 32, 33, 14).
+- The firmware sets the pin to open-drain: low = on, released = off.
+
+With a white LED the numbers work out: 5 V minus about 3 V for the LED minus
+0.3 V across the pin leaves 1.7 V over the resistor, so about 11 mA per
+button, which the ESP32 can sink comfortably (up to about 28 mA per pin).
+
+When the light is off, only the pin's leakage current flows. At such a tiny
+current a white LED drops less than its nominal 2.8 V, about 2.1 to 2.5 V,
+so the pin sees roughly **2.5 to 2.9 V**: below the 3.3 V supply and the
+3.6 V absolute maximum, but not by a huge margin. That is why this only works
+with **white or blue** LEDs (a red one would push the pin over 3.3 V), and
+why **12 V modules** (resistor of 470 Ω or more) are out: too dim. Measure
+the pin voltage with the light off after wiring it; under 3.3 V is fine.
+
+If you want more margin, switch the three LEDs with a ULN2003 (or three
+2N7000) and turn on *Lights are switched by a transistor* in menuconfig;
+the wiring at the button bar stays the same, only the LED returns go to the
+transistors instead of the GPIOs.
+
+What the lights do: a chase red → yellow → blue while the strip waits for a
+player, all on during the countdown and the game, a short blink of the button
+that was pressed, fast blinking when a level is cleared, slow blinking at
+game over, and off while the colour chart is shown.

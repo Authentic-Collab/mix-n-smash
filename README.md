@@ -41,6 +41,7 @@ defaults to 300 LEDs. Scores stay in the browser's local storage.
 | Wemos ESP-WROOM-32 | Any classic ESP32 board with 4 MB flash works (`board = esp32dev`). |
 | WS2812B LED strip, ~300 LEDs | 5 V. Data from **GPIO 16** through a 300-500 Ω resistor; a 74AHCT125 level shifter helps with long wires. Inject 5 V at both ends of a 5 m strip. |
 | 3 push buttons | **Red GPIO 25**, **yellow GPIO 26**, **blue GPIO 27**, each to GND. The internal pull-ups are used. GPIO 34-39 have no pull-ups, avoid them. |
+| Lights in the buttons (optional) | White 5 V LED modules, LED plus on +5 V, LED minus to **GPIO 32 / 33 / 14**; the pin sinks the current, no transistor. Off by default in menuconfig. |
 | 5 V power supply | See *Power* below. |
 
 [docs/wiring.md](docs/wiring.md) has the wiring diagram for the minimal
@@ -109,6 +110,8 @@ python3 tools/build_web.py
 | LED strip → Current limit | 1500 mA |
 | Buttons → Red / yellow / blue GPIO | 25 / 26 / 27 |
 | Buttons → Buttons connect to 3.3 V instead of GND | off |
+| Buttons → Lights in the buttons | off; GPIO 32 / 33 / 14 when on |
+| Buttons → Lights are switched by a transistor | off (the GPIO sinks the LED current) |
 | Game → A dot hit by the wrong colour keeps coming | off (stricter variant) |
 | Game → Frame period | 16 ms |
 | Wi-Fi → Network to join / password | empty: start an access point |
